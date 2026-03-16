@@ -1,7 +1,7 @@
-import express from 'express';
+import express, { Router } from 'express';
 import vehicleRoutes from './vehicleRoutes';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @openapi

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
@@ -6,7 +6,7 @@ import swaggerSpec from './config/swagger';
 import { errorHandler } from './middlewares/errorMiddleware';
 import routes from './routes';
 
-const app = express();
+const app: Express = express();
 
 // Middlewares
 app.use(helmet());
