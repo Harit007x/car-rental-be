@@ -5,12 +5,17 @@
 // For the starter kit, we'll use a placeholder until prisma is generated
 const mockVehicles: any[] = [];
 
-export const createVehicle = async (data: any) => {
+import type { PrismaClient as TenantPrismaClient } from "../generated/prisma-tenant/client";
+
+export const createVehicle = async (
+  tenantPrisma: TenantPrismaClient,
+  data: any,
+) => {
   const newVehicle = { id: Date.now().toString(), ...data };
   mockVehicles.push(newVehicle);
   return newVehicle;
 };
 
-export const getAllVehicles = async () => {
+export const getAllVehicles = async (tenantPrisma: TenantPrismaClient) => {
   return mockVehicles;
 };

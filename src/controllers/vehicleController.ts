@@ -1,9 +1,16 @@
-import { Request, Response, NextFunction } from 'express';
-import * as vehicleService from '../services/vehicleService';
+import { Request, Response, NextFunction } from "express";
+import * as vehicleService from "../services/vehicleService";
 
-export const createVehicle = async (req: Request, res: Response, next: NextFunction) => {
+export const createVehicle = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const vehicle = await vehicleService.createVehicle(req.body);
+    const vehicle = await vehicleService.createVehicle(
+      req.tenantPrisma!,
+      req.body
+    );
     res.status(201).json({
       success: true,
       data: vehicle,
@@ -13,9 +20,13 @@ export const createVehicle = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getAllVehicles = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllVehicles = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const vehicles = await vehicleService.getAllVehicles();
+    const vehicles = await vehicleService.getAllVehicles(req.tenantPrisma!);
     res.json({
       success: true,
       data: vehicles,

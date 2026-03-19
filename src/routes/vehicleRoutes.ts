@@ -1,46 +1,69 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { validate } from '../middlewares/validateMiddleware';
+import { authenticate, authorize } from '../middlewares/authMiddleware';
+import { requireTenant } from '../middlewares/tenantMiddleware';
 import { createVehicleSchema } from '../validations/vehicleValidation';
 import * as vehicleController from '../controllers/vehicleController';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @openapi
- * /vehicles:
+ * /api/vehicles:
  *   post:
- *     summary: Create a new vehicle
- *     tags: [Vehiles]
+ *     tags:
+ *       - Vehicles
+ *     summary: Add a new vehicle
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [name, make, model, year, regNumber, category]
- *             properties:
- *               name: { type: string }
- *               make: { type: string }
- *               model: { type: string }
- *               year: { type: number }
- *               regNumber: { type: string }
- *               category: { type: string }
+ *             $ref: '#/components/schemas/VehicleInput'
  *     responses:
  *       201:
  *         description: Vehicle created successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Not a tenant admin or missing tenantId)
  */
-router.post('/', validate(createVehicleSchema), vehicleController.createVehicle);
+router.post(
+  '/',
+  authenticate,
+  authorize('RENTAL_ADMIN'),
+  requireTenant,
+  validate(createVehicleSchema),
+  vehicleController.createVehicle
+);
 
 /**
  * @openapi
- * /vehicles:
+ * /api/vehicles:
  *   get:
+ *     tags:
+ *       - Vehicles
  *     summary: Get all vehicles
- *     tags: [Vehiles]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of vehicles
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
-router.get('/', vehicleController.getAllVehicles);
+router.get(
+  '/',
+  authenticate,
+  authorize('RENTAL_ADMIN', 'DELIVERY_PARTNER'),
+  requireTenant,
+  vehicleController.getAllVehicles
+);
 
 export default router;

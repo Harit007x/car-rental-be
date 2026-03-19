@@ -10,32 +10,80 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
+// ─── Enums ───────────────────────────────────────────────
+
+enum AdminRole {
   SUPER_ADMIN
-  RENTAL_ADMIN
-  CUSTOMER
-  DELIVERY_PARTNER
   GOVERNMENT_ADMIN
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum BusinessType {
+  INDIVIDUAL
+  COMPANY
+  FLEET_OPERATOR
 }
 
-model Vehicle {
+// ─── Global Models (public schema) ───────────────────────
+
+model AdminUser {
+  id            String              @id @default(uuid())
+  email         String              @unique
+  password      String
+  role          AdminRole
+  refreshTokens AdminRefreshToken[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model AdminRefreshToken {
+  id          String    @id @default(uuid())
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
+  tokenId     String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([adminUserId])
+}
+
+model Tenant {
+  id                 String            @id @default(uuid())
+  subdomain          String            @unique // e.g. abc.yourapp.com
+  businessName       String
+  registrationNumber String
+  ownerName          String
+  ownerPhone         String
+  ownerEmail         String
+  businessAddress    String
+  city               String
+  state              String
+  country            String
+  businessType       BusinessType
+  fleetSize          Int
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  driverDirectories  DriverDirectory[]
+}
+
+model DriverDirectory {
   id        String   @id @default(uuid())
-  name      String
-  make      String
-  model     String
-  year      Int
-  regNumber String   @unique
-  category  String
-  status    String   @default("AVAILABLE") // AVAILABLE, RENTED, MAINTENANCE
+  mobile    String   @unique
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  mobile    String
+  code      String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([mobile])
 }

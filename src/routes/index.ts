@@ -1,5 +1,7 @@
-import express, { Router } from 'express';
-import vehicleRoutes from './vehicleRoutes';
+import express, { Router } from "express";
+import authRoutes from "./authRoutes";
+import tenantRoutes from "./tenantRoutes";
+import vehicleRoutes from "./vehicleRoutes";
 
 const router: Router = express.Router();
 
@@ -12,8 +14,10 @@ const router: Router = express.Router();
  *       200:
  *         description: Server is healthy
  */
-router.get('/health', (req, res) => res.json({ status: 'ok' }));
+router.get("/health", (req, res) => res.json({ status: "ok" }));
 
-router.use('/vehicles', vehicleRoutes);
+router.use("/auth", authRoutes);
+router.use("/tenants", tenantRoutes);
+router.use("/vehicles", vehicleRoutes);
 
 export default router;
