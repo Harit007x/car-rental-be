@@ -8,6 +8,7 @@ import {
 } from "../validations/authValidation";
 import * as authController from "../controllers/authController";
 import { authenticate, authorize } from "../middlewares/authMiddleware";
+import { tenantContext } from "../middlewares/tenantResolutionMiddleware";
 
 const router: Router = express.Router();
 
@@ -95,7 +96,12 @@ router.post(
  *       401:
  *         description: Invalid email or password
  */
-router.post("/login", validate(loginSchema), authController.login);
+router.post(
+  "/login",
+  tenantContext(),
+  validate(loginSchema),
+  authController.login
+);
 
 /**
  * @openapi
@@ -118,7 +124,12 @@ router.post("/login", validate(loginSchema), authController.login);
  *       401:
  *         description: Invalid refresh token
  */
-router.post("/refresh", validate(refreshSchema), authController.refresh);
+router.post(
+  "/refresh",
+  tenantContext(),
+  validate(refreshSchema),
+  authController.refresh
+);
 
 /**
  * @openapi
@@ -159,6 +170,6 @@ router.post("/logout", validate(refreshSchema), authController.logout);
  *       404:
  *         description: User not found
  */
-router.get("/me", authenticate, authController.me);
+router.get("/me", authenticate, tenantContext(), authController.me);
 
 export default router;

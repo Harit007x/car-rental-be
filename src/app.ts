@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
 import { errorHandler } from './middlewares/errorMiddleware';
-import { resolveTenantFromSubdomain } from "./middlewares/tenantResolutionMiddleware";
 import routes from './routes';
 
 const app: Express = express();
@@ -18,7 +17,6 @@ app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
-app.use(resolveTenantFromSubdomain);
 app.use('/api', routes);
 
 // Error Handling

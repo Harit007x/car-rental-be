@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { validate } from '../middlewares/validateMiddleware';
 import { authenticate, authorize } from '../middlewares/authMiddleware';
-import { requireTenant } from '../middlewares/tenantMiddleware';
+import { tenantContext } from "../middlewares/tenantResolutionMiddleware";
 import { createVehicleSchema } from '../validations/vehicleValidation';
 import * as vehicleController from '../controllers/vehicleController';
 
@@ -36,7 +36,7 @@ router.post(
   '/',
   authenticate,
   authorize('RENTAL_ADMIN'),
-  requireTenant,
+  tenantContext({ required: true }),
   validate(createVehicleSchema),
   vehicleController.createVehicle
 );
@@ -62,7 +62,7 @@ router.get(
   '/',
   authenticate,
   authorize('RENTAL_ADMIN', 'DELIVERY_PARTNER'),
-  requireTenant,
+  tenantContext({ required: true }),
   vehicleController.getAllVehicles
 );
 
