@@ -50,6 +50,7 @@ const ensureTenant = async () => {
       country: "India",
       businessType: "COMPANY",
       fleetSize: 25,
+      status: "INACTIVE"
     },
   });
 

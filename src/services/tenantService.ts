@@ -37,6 +37,7 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
         country: data.country,
         businessType: data.businessType,
         fleetSize: data.fleetSize,
+        status: "INACTIVE"
       },
     });
 
