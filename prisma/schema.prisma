@@ -17,6 +17,18 @@ enum AdminRole {
   GOVERNMENT_ADMIN
 }
 
+enum AdminUserStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum SubscriptionStatus {
+  ENABLED
+  DISABLED
+  DELETED
+}
+
 enum BusinessType {
   INDIVIDUAL
   COMPANY
@@ -26,15 +38,20 @@ enum BusinessType {
 enum CompanyStatus {
   INACTIVE
   ACTIVE
+  ACCOUNT_DELETED
 }
 
 // ─── Global Models (public schema) ───────────────────────
 
 model AdminUser {
   id            String              @id @default(uuid())
+  name          String
+  mobile        String              @unique
   email         String              @unique
   password      String
   role          AdminRole
+  address       String
+  status        AdminUserStatus     @default(ACTIVE)
   refreshTokens AdminRefreshToken[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -67,10 +84,22 @@ model Tenant {
   country            String
   businessType       BusinessType
   fleetSize          Int
+  bankAccount        BankAccount?
   status             CompanyStatus     @default(INACTIVE)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   driverDirectories  DriverDirectory[]
+}
+
+model BankAccount {
+  id          String   @id @default(uuid())
+  tenantId    String   @unique
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  accountName String
+  accountNo   String
+  bankName    String
+  ifscCode    String
+  createdAt   DateTime @default(now())
 }
 
 model DriverDirectory {
@@ -92,4 +121,24 @@ model Otp {
   createdAt DateTime @default(now())
 
   @@index([mobile])
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  description String
+  features    String[]
+  price       Float
+  status      SubscriptionStatus @default(ENABLED)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model CmsPage {
+  id        String   @id @default(uuid())
+  title     String
+  slug      String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

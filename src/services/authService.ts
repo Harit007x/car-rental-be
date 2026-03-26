@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { globalPrisma } from "../lib/prisma";
 import { tenantPrismaManager } from "../lib/tenantPrisma";
-import { hashPassword, comparePassword } from "../lib/password";
+import { comparePassword } from "../lib/password";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -12,80 +12,10 @@ import { REFRESH_TOKEN_TTL_DAYS } from "../config/constants";
 import type { JwtPayload } from "../types/auth";
 import type { PrismaClient as TenantPrismaClient } from "../generated/prisma-tenant/client";
 
-interface RegisterSuperAdminInput {
-  email: string;
-  password: string;
-}
-
-interface RegisterGovernmentAdminInput {
-  email: string;
-  password: string;
-}
-
 interface LoginInput {
   email: string;
   password: string;
 }
-
-export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
-  // Check if a super admin already exists
-  const existingSuperAdmin = await globalPrisma.adminUser.findFirst({
-    where: { role: "SUPER_ADMIN" },
-  });
-
-  if (existingSuperAdmin) {
-    throw new AppError("Super admin already exists", 409);
-  }
-
-  // Check for duplicate email
-  const existingUser = await globalPrisma.adminUser.findUnique({
-    where: { email: data.email },
-  });
-
-  if (existingUser) {
-    throw new AppError("Email already in use", 409);
-  }
-
-  const hashedPassword = await hashPassword(data.password);
-
-  const user = await globalPrisma.adminUser.create({
-    data: {
-      email: data.email,
-      password: hashedPassword,
-      role: "SUPER_ADMIN",
-    },
-  });
-
-  return {
-    user: { id: user.id, email: user.email, role: user.role },
-  };
-};
-
-export const registerGovernmentAdmin = async (
-  data: RegisterGovernmentAdminInput
-) => {
-  const existingUser = await globalPrisma.adminUser.findUnique({
-    where: { email: data.email },
-  });
-
-  if (existingUser) {
-    throw new AppError("Email already in use", 409);
-  }
-
-  const hashedPassword = await hashPassword(data.password);
-
-  const user = await globalPrisma.adminUser.create({
-    data: {
-      email: data.email,
-      password: hashedPassword,
-      role: "GOVERNMENT_ADMIN",
-    },
-  });
-
-  return {
-    user: { id: user.id, email: user.email, role: user.role },
-  };
-};
 
 export const loginAdmin = async (data: LoginInput) => {
   const user = await globalPrisma.adminUser.findUnique({
@@ -98,6 +28,13 @@ export const loginAdmin = async (data: LoginInput) => {
 
   if (user.role !== "SUPER_ADMIN" && user.role !== "GOVERNMENT_ADMIN") {
     throw new AppError("Unauthorized role", 403);
+  }
+
+  if (user.status !== "ACTIVE") {
+    throw new AppError(
+      "Your account has been deactivated. Please contact the super admin.",
+      403,
+    );
   }
 
   const isPasswordValid = await comparePassword(data.password, user.password);
@@ -118,7 +55,7 @@ export const loginAdmin = async (data: LoginInput) => {
 export const loginTenantAdmin = async (
   data: LoginInput,
   tenantPrisma: TenantPrismaClient,
-  tenantSubdomain: string
+  tenantSubdomain: string,
 ) => {
   const user = await tenantPrisma.user.findUnique({
     where: { email: data.email },
@@ -137,7 +74,7 @@ export const loginTenantAdmin = async (
   const { accessToken, refreshToken } = await issueTenantTokens(
     user,
     tenantSubdomain,
-    tenantPrisma
+    tenantPrisma,
   );
 
   return {
@@ -154,7 +91,7 @@ export const loginTenantAdmin = async (
 
 export const refreshTokens = async (
   refreshToken: string,
-  expectedTenantSubdomain: string | null
+  expectedTenantSubdomain: string | null,
 ) => {
   const payload = verifyRefreshToken(refreshToken);
 
@@ -192,9 +129,7 @@ export const logout = async (refreshToken: string) => {
   }
 
   if (payload.tenantSubdomain) {
-    const tenantPrisma = tenantPrismaManager.getClient(
-      payload.tenantSubdomain
-    );
+    const tenantPrisma = tenantPrismaManager.getClient(payload.tenantSubdomain);
     await tenantPrisma.refreshToken.updateMany({
       where: { tokenId: payload.tokenId, revokedAt: null },
       data: { revokedAt: new Date() },
@@ -211,7 +146,7 @@ export const logout = async (refreshToken: string) => {
 export const getCurrentUser = async (
   payload: JwtPayload,
   tenantSubdomainFromReq: string | null,
-  tenantPrismaFromReq?: TenantPrismaClient
+  tenantPrismaFromReq?: TenantPrismaClient,
 ) => {
   if (payload.tenantSubdomain) {
     if (
@@ -263,7 +198,7 @@ export const getCurrentUser = async (
 const issueAdminTokens = async (user: { id: string; role: string }) => {
   const tokenId = randomUUID();
   const expiresAt = new Date(
-    Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
   await globalPrisma.adminRefreshToken.create({
@@ -293,11 +228,11 @@ const issueAdminTokens = async (user: { id: string; role: string }) => {
 const issueTenantTokens = async (
   user: { id: string; role: string },
   tenantSubdomain: string,
-  tenantPrisma: TenantPrismaClient
+  tenantPrisma: TenantPrismaClient,
 ) => {
   const tokenId = randomUUID();
   const expiresAt = new Date(
-    Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
   await tenantPrisma.refreshToken.create({
@@ -326,7 +261,7 @@ const issueTenantTokens = async (
 
 const refreshAdminTokens = async (
   payload: JwtPayload,
-  refreshToken: string
+  refreshToken: string,
 ) => {
   const existing = await globalPrisma.adminRefreshToken.findUnique({
     where: { tokenId: payload.tokenId! },
@@ -363,7 +298,7 @@ const refreshAdminTokens = async (
 
 const refreshTenantTokens = async (
   payload: JwtPayload,
-  refreshToken: string
+  refreshToken: string,
 ) => {
   const tenantSubdomain = payload.tenantSubdomain!;
   const tenantPrisma = tenantPrismaManager.getClient(tenantSubdomain);

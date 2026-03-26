@@ -2,49 +2,17 @@ import { Request, Response, NextFunction } from "express";
 import * as authService from "../services/authService";
 import { AppError } from "../lib/AppError";
 
-export const registerSuperAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const result = await authService.registerSuperAdmin(req.body);
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const registerGovernmentAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const result = await authService.registerGovernmentAdmin(req.body);
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const login = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     if (req.tenantSubdomain && req.tenantPrisma) {
       const result = await authService.loginTenantAdmin(
         req.body,
         req.tenantPrisma,
-        req.tenantSubdomain
+        req.tenantSubdomain,
       );
       return res.json({
         success: true,
@@ -65,12 +33,12 @@ export const login = async (
 export const refresh = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const result = await authService.refreshTokens(
       req.body.refreshToken,
-      req.tenantSubdomain ?? null
+      req.tenantSubdomain ?? null,
     );
     res.json({
       success: true,
@@ -84,7 +52,7 @@ export const refresh = async (
 export const logout = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     await authService.logout(req.body.refreshToken);
@@ -97,11 +65,7 @@ export const logout = async (
   }
 };
 
-export const me = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const me = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw new AppError("Authentication required", 401);
@@ -110,7 +74,7 @@ export const me = async (
     const result = await authService.getCurrentUser(
       req.user,
       req.tenantSubdomain ?? null,
-      req.tenantPrisma
+      req.tenantPrisma,
     );
 
     res.json({
