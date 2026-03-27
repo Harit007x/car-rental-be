@@ -50,22 +50,19 @@ const ensureTenant = async () => {
       country: "India",
       businessType: "COMPANY",
       fleetSize: 25,
-      status: "INACTIVE"
+      status: "INACTIVE",
     },
   });
 
   await provisionTenantSchema(tenant.subdomain);
 
-  const tenantPrisma = tenantPrismaManager.getClient(
-    tenant.subdomain,
-  );
+  const tenantPrisma = tenantPrismaManager.getClient(tenant.subdomain);
   const adminPassword = await hashPassword("Admin@1234");
   await tenantPrisma.user.create({
     data: {
       email: "owner@acme.com",
       password: adminPassword,
       role: "RENTAL_ADMIN",
-      isEmailVerified: false,
       mustChangePassword: true,
     },
   });

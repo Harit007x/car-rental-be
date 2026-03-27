@@ -19,21 +19,21 @@ enum Role {
 enum CustomerStatus {
   ACTIVE
   INACTIVE
+  DELETED
 }
 
 enum DeliveryPartnerStatus {
   ACTIVE
   INACTIVE
-  ACCOUNT_DELETED
+  DELETED
 }
 
-enum PartnerDocumentType {
-  DRIVING_LICENSE
-}
 
-enum CustomerDocumentType {
+enum DocumentType {
   DRIVING_LICENSE
   SIGNED_CONTRACT
+  RC
+  PERMISSION_LETTER
 }
 
 // ─── MODELS ─────────────────────────────────────────────
@@ -41,20 +41,22 @@ enum CustomerDocumentType {
 // Rental Admin (Web Login)
 model User {
   id                 String         @id @default(uuid())
+  name               String?
   email              String         @unique
   password           String
   role               Role           @default(RENTAL_ADMIN)
   mustChangePassword Boolean        @default(true)
-  isEmailVerified    Boolean        @default(false)
   refreshTokens      RefreshToken[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
+
+  @@index([email])
 }
 
 model RefreshToken {
   id        String    @id @default(uuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenId   String    @unique
   expiresAt DateTime
   revokedAt DateTime?
@@ -74,15 +76,16 @@ model DeliveryPartner {
   status    DeliveryPartnerStatus     @default(ACTIVE)
   documents DeliveryPartnerDocument[]
   createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
 }
 
 model DeliveryPartnerDocument {
-  id         String              @id @default(uuid())
+  id         String          @id @default(uuid())
   partnerId  String
-  partner    DeliveryPartner     @relation(fields: [partnerId], references: [id])
-  type       PartnerDocumentType
+  partner    DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  type       DocumentType
   fileUrl    String
-  uploadedAt DateTime            @default(now())
+  uploadedAt DateTime        @default(now())
 
   @@index([partnerId])
 }
@@ -93,18 +96,22 @@ model Customer {
   mobileNumber      String
   email             String?
   address           String
+  dob               DateTime?
   status            CustomerStatus     @default(ACTIVE)
-  createdAt         DateTime           @default(now())
   customerDocuments CustomerDocument[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([mobileNumber])
 }
 
 model CustomerDocument {
-  id         String               @id @default(uuid())
+  id         String       @id @default(uuid())
   customerId String
-  customer   Customer             @relation(fields: [customerId], references: [id])
-  type       CustomerDocumentType
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       DocumentType
   fileUrl    String
-  uploadedAt DateTime             @default(now())
+  uploadedAt DateTime     @default(now())
 
   @@index([customerId])
 }

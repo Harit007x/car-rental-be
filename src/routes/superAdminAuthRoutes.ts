@@ -8,7 +8,7 @@ import { authenticate, authorize } from "../middlewares/authMiddleware";
 const router: Router = express.Router();
 
 router.post(
-  "/register-super-admin",
+  "/register",
   validate(superAdminRegisterSchema),
   superAdminAuthController.registerSuperAdmin,
 );

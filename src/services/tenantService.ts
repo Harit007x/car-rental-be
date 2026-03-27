@@ -3,8 +3,10 @@ import { globalPrisma } from "../lib/prisma";
 import { AppError } from "../lib/AppError";
 import { hashPassword } from "../lib/password";
 import { provisionTenantSchema } from "./tenantProvisioningService";
-import { tenantPrismaManager } from "../lib/tenantPrisma";
+import { TenantPrismaClient, tenantPrismaManager } from "../lib/tenantPrisma";
 import type { OnboardTenantInput } from "../validations/tenantValidation";
+import type { PaginationParams, PaginatedResult } from "../lib/pagination";
+import type { CompanyStatus } from "../generated/prisma/client";
 
 export const onboardTenant = async (data: OnboardTenantInput) => {
   const subdomain = data.subdomain.toLowerCase();
@@ -37,7 +39,17 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
         country: data.country,
         businessType: data.businessType,
         fleetSize: data.fleetSize,
-        status: "INACTIVE"
+        bankAccount: data.bankAccount
+          ? {
+              create: {
+                accountName: data.bankAccount.accountName,
+                accountNo: data.bankAccount.accountNo,
+                bankName: data.bankAccount.bankName,
+                ifscCode: data.bankAccount.ifscCode,
+              },
+            }
+          : undefined,
+        status: "INACTIVE",
       },
     });
 
@@ -62,10 +74,10 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
   const tenantPrisma = tenantPrismaManager.getClient(newTenant.subdomain);
   const adminUser = await tenantPrisma.user.create({
     data: {
+      name: data.ownerName,
       email: data.ownerEmail,
       password: hashedPassword,
       role: "RENTAL_ADMIN",
-      isEmailVerified: false,
       mustChangePassword: true,
     },
   });
@@ -80,18 +92,82 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
   };
 };
 
-export const getAllTenants = async () => {
-  const tenants = await globalPrisma.tenant.findMany({
-    orderBy: { createdAt: "desc" },
+type TenantListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export const getAllTenants = async (
+  pagination: PaginationParams,
+  filters: TenantListFilters = {},
+): Promise<PaginatedResult<any>> => {
+  const where: any = {};
+
+  if (filters.search) {
+    const term = filters.search.trim();
+    if (term) {
+      where.OR = [
+        { businessName: { contains: term, mode: "insensitive" } },
+        { ownerEmail: { contains: term, mode: "insensitive" } },
+        { ownerPhone: { contains: term } },
+      ];
+    }
+  }
+
+  if (filters.fromDate || filters.toDate) {
+    where.createdAt = {};
+    if (filters.fromDate) {
+      where.createdAt.gte = new Date(filters.fromDate);
+    }
+    if (filters.toDate) {
+      where.createdAt.lte = new Date(filters.toDate);
+    }
+  }
+
+  const [items, total] = await globalPrisma.$transaction([
+    globalPrisma.tenant.findMany({
+      where,
+      include: { bankAccount: true },
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    globalPrisma.tenant.count({ where }),
+  ]);
+
+  return {
+    items,
+    total,
+    page: pagination.page,
+    limit: pagination.limit,
+    totalPages: Math.ceil(total / pagination.limit),
+  };
+};
+
+export const updateTenantStatus = async (
+  tenantId: string,
+  status: CompanyStatus,
+) => {
+  const existing = await globalPrisma.tenant.findUnique({
+    where: { id: tenantId },
   });
 
-  return { tenants };
+  if (!existing) {
+    throw new AppError("Tenant not found", 404);
+  }
+
+  return globalPrisma.tenant.update({
+    where: { id: tenantId },
+    data: { status },
+  });
 };
 
 export const getTenantData = async (subdomain: string) => {
   const normalizedSubdomain = subdomain.toLowerCase();
   const tenant = await globalPrisma.tenant.findUnique({
     where: { subdomain: normalizedSubdomain },
+    include: { bankAccount: true },
   });
 
   if (!tenant) {
@@ -113,7 +189,7 @@ export const getTenantData = async (subdomain: string) => {
         id: true,
         email: true,
         role: true,
-        isEmailVerified: true,
+        mustChangePassword: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -136,4 +212,43 @@ export const getTenantData = async (subdomain: string) => {
       serviceLocations,
     },
   };
+};
+
+export const updateTenantProfile = async (
+  tenantPrisma: TenantPrismaClient,
+  userId: string,
+  data: { name?: string; email?: string },
+) => {
+  const existing = await tenantPrisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!existing) {
+    throw new AppError("User not found", 404);
+  }
+
+  if (data.email && data.email !== existing.email) {
+    const emailTaken = await tenantPrisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (emailTaken) {
+      throw new AppError("Email already in use", 409);
+    }
+  }
+
+  return tenantPrisma.user.update({
+    where: { id: userId },
+    data: {
+      name: data.name,
+      email: data.email,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
 };

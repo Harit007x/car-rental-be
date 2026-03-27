@@ -3,9 +3,14 @@ import { validate } from "../middlewares/validateMiddleware";
 import { authenticate, authorize } from "../middlewares/authMiddleware";
 import {
   onboardTenantSchema,
+  tenantIdParamsSchema,
   tenantDataParamsSchema,
+  tenantProfileUpdateSchema,
+  tenantStatusSchema,
 } from "../validations/tenantValidation";
+import { listQuerySchema } from "../validations/listQueryValidation";
 import * as tenantController from "../controllers/tenantController";
+import { tenantContext } from "../middlewares/tenantResolutionMiddleware";
 
 const router: Router = express.Router();
 
@@ -30,7 +35,8 @@ const router: Router = express.Router();
 router.get(
   "/",
   authenticate,
-  authorize("SUPER_ADMIN", "GOVERNMENT_ADMIN"),
+  authorize("SUPER_ADMIN"),
+  validate(listQuerySchema),
   tenantController.getAllTenants,
 );
 
@@ -64,7 +70,7 @@ router.get(
 router.get(
   "/:subdomain/data",
   authenticate,
-  authorize("SUPER_ADMIN", "GOVERNMENT_ADMIN"),
+  authorize("SUPER_ADMIN"),
   validate(tenantDataParamsSchema),
   tenantController.getTenantData,
 );
@@ -120,6 +126,31 @@ router.post(
   authorize("SUPER_ADMIN"),
   validate(onboardTenantSchema),
   tenantController.onboardTenant,
+);
+
+router.put(
+  "/profile",
+  authenticate,
+  authorize("RENTAL_ADMIN"),
+  tenantContext({ required: true }),
+  validate(tenantProfileUpdateSchema),
+  tenantController.updateTenantProfile,
+);
+
+router.patch(
+  "/:tenantId/status",
+  authenticate,
+  authorize("SUPER_ADMIN"),
+  validate(tenantStatusSchema),
+  tenantController.updateTenantStatus,
+);
+
+router.delete(
+  "/:tenantId",
+  authenticate,
+  authorize("SUPER_ADMIN"),
+  validate(tenantIdParamsSchema),
+  tenantController.deleteTenant,
 );
 
 export default router;

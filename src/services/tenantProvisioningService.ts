@@ -5,26 +5,21 @@ import { env } from "../config/env";
 
 const TENANT_SQL_PATH = path.resolve(
   __dirname,
-  "../../prisma/tenant-tables.sql"
+  "../../prisma/tenant-tables.sql",
 );
 
 export const provisionTenantSchema = async (
-  schemaName: string
+  schemaName: string,
 ): Promise<void> => {
-
   const client = new pg.Client({ connectionString: env.DATABASE_URL });
   await client.connect();
 
   try {
     // Create the tenant schema
-    await client.query(
-      `CREATE SCHEMA IF NOT EXISTS "${schemaName}"`
-    );
+    await client.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 
     // Set search_path to the new schema
-    await client.query(
-      `SET search_path TO "${schemaName}"`
-    );
+    await client.query(`SET search_path TO "${schemaName}"`);
 
     // Run the DDL to create tenant tables
     const sql = fs.readFileSync(TENANT_SQL_PATH, "utf-8");
@@ -35,7 +30,6 @@ export const provisionTenantSchema = async (
 };
 
 export const dropTenantSchema = async (schemaName: string): Promise<void> => {
-
   const client = new pg.Client({ connectionString: env.DATABASE_URL });
   await client.connect();
 
