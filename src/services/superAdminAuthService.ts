@@ -69,9 +69,6 @@ export const getSuperAdminProfile = async (adminId: string) => {
       mobile: true,
       address: true,
       role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
     },
   });
 
@@ -116,9 +113,6 @@ export const updateSuperAdminProfile = async (
       mobile: true,
       address: true,
       role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
     },
   });
 
