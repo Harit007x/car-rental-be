@@ -1,6 +1,7 @@
 import { AppError } from "../lib/AppError";
 import { globalPrisma } from "../lib/prisma";
 import { hashPassword } from "../lib/password";
+import type { PaginationParams, PaginatedResult } from "../lib/pagination";
 
 interface RegisterSuperAdminInput {
   name: string;
@@ -14,6 +15,29 @@ interface UpdateAdminProfileInput {
   name?: string;
   email?: string;
 }
+
+type AdminListFilters = {
+  search?: string;
+};
+
+const selectSuperAdminProfile = {
+  id: true,
+  name: true,
+  email: true,
+  mobile: true,
+  address: true,
+  role: true,
+};
+
+const selectAdminListItem = {
+  id: true,
+  name: true,
+  email: true,
+  mobile: true,
+  address: true,
+  role: true,
+  status: true,
+};
 
 export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
   const existingSuperAdmin = await globalPrisma.adminUser.findFirst({
@@ -62,14 +86,7 @@ export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
 export const getSuperAdminProfile = async (adminId: string) => {
   const admin = await globalPrisma.adminUser.findUnique({
     where: { id: adminId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      mobile: true,
-      address: true,
-      role: true,
-    },
+    select: selectSuperAdminProfile,
   });
 
   if (!admin || admin.role !== "SUPER_ADMIN") {
@@ -106,15 +123,47 @@ export const updateSuperAdminProfile = async (
       name: data.name,
       email: data.email,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      mobile: true,
-      address: true,
-      role: true,
-    },
+    select: selectSuperAdminProfile,
   });
 
   return updated;
+};
+
+export const getAllAdmins = async (
+  pagination: PaginationParams,
+  filters: AdminListFilters = {},
+): Promise<PaginatedResult<any>> => {
+  const where: any = {
+    status: { not: "DELETED" },
+  };
+
+  if (filters.search) {
+    const term = filters.search.trim();
+    if (term) {
+      where.OR = [
+        { name: { contains: term, mode: "insensitive" } },
+        { email: { contains: term, mode: "insensitive" } },
+        { mobile: { contains: term } },
+      ];
+    }
+  }
+
+  const [items, total] = await globalPrisma.$transaction([
+    globalPrisma.adminUser.findMany({
+      where,
+      select: selectAdminListItem,
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    globalPrisma.adminUser.count({ where }),
+  ]);
+
+  return {
+    items,
+    total,
+    page: pagination.page,
+    limit: pagination.limit,
+    totalPages: Math.ceil(total / pagination.limit),
+  };
 };

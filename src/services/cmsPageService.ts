@@ -23,8 +23,6 @@ const selectCmsPage = {
   title: true,
   slug: true,
   content: true,
-  createdAt: true,
-  updatedAt: true,
 };
 
 export const createCmsPage = async (data: CreateCmsPageInput) => {

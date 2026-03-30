@@ -2,9 +2,9 @@ import express, { Router } from "express";
 import { authenticate, authorize } from "../middlewares/authMiddleware";
 import { validate } from "../middlewares/validateMiddleware";
 import * as cmsPageController from "../controllers/cmsPageController";
+import { paginationQuerySchema } from "../validations/paginationValidation";
 import {
   cmsPageIdParamsSchema,
-  cmsPageListQuerySchema,
   createCmsPageSchema,
   updateCmsPageSchema,
 } from "../validations/cmsPageValidation";
@@ -23,7 +23,7 @@ router.get(
   "/",
   authenticate,
   authorize("SUPER_ADMIN"),
-  validate(cmsPageListQuerySchema),
+  validate(paginationQuerySchema),
   cmsPageController.getCmsPages,
 );
 

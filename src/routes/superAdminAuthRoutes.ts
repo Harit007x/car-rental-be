@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import { validate } from "../middlewares/validateMiddleware";
 import { superAdminRegisterSchema } from "../validations/authValidation";
 import { adminProfileUpdateSchema } from "../validations/adminProfileValidation";
+import { paginationWithSearchQuerySchema } from "../validations/paginationValidation";
 import * as superAdminAuthController from "../controllers/superAdminAuthController";
 import { authenticate, authorize } from "../middlewares/authMiddleware";
 
@@ -26,6 +27,14 @@ router.put(
   authorize("SUPER_ADMIN"),
   validate(adminProfileUpdateSchema),
   superAdminAuthController.updateSuperAdminProfile,
+);
+
+router.get(
+  "/admins",
+  authenticate,
+  authorize("SUPER_ADMIN"),
+  validate(paginationWithSearchQuerySchema),
+  superAdminAuthController.getAllAdmins,
 );
 
 export default router;

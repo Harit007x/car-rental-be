@@ -16,10 +16,6 @@ interface UpdateSubscriptionInput {
   price?: number;
 }
 
-type SubscriptionFilters = {
-  search?: string;
-};
-
 const selectSubscription = {
   id: true,
   name: true,
@@ -27,8 +23,6 @@ const selectSubscription = {
   features: true,
   price: true,
   status: true,
-  createdAt: true,
-  updatedAt: true,
 };
 
 export const createSubscription = async (data: CreateSubscriptionInput) => {

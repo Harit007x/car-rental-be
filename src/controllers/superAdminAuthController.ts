@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as superAdminAuthService from "../services/superAdminAuthService";
 import { AppError } from "../lib/AppError";
+import { getPaginationParams } from "../lib/pagination";
 
 export const registerSuperAdmin = async (
   req: Request,
@@ -51,6 +52,23 @@ export const updateSuperAdminProfile = async (
       req.user.userId,
       req.body,
     );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllAdmins = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const pagination = getPaginationParams(req.query);
+    const result = await superAdminAuthService.getAllAdmins(pagination, {
+      search: req.query.search as string | undefined,
+    });
+
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
