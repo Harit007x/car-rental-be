@@ -6,7 +6,39 @@ import { provisionTenantSchema } from "./tenantProvisioningService";
 import { TenantPrismaClient, tenantPrismaManager } from "../lib/tenantPrisma";
 import type { OnboardTenantInput } from "../validations/tenantValidation";
 import type { PaginationParams, PaginatedResult } from "../lib/pagination";
-import type { CompanyStatus } from "../generated/prisma/client";
+import type { CompanyStatus, Prisma } from "../generated/prisma/client";
+
+type TenantListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+const selectTenantWithBankAccount = {
+  id: true,
+  subdomain: true,
+  businessName: true,
+  registrationNumber: true,
+  ownerName: true,
+  ownerPhone: true,
+  ownerEmail: true,
+  businessAddress: true,
+  city: true,
+  state: true,
+  country: true,
+  businessType: true,
+  fleetSize: true,
+  status: true,
+  bankAccount: {
+    select: {
+      id: true,
+      accountName: true,
+      accountNo: true,
+      bankName: true,
+      ifscCode: true,
+    },
+  },
+};
 
 export const onboardTenant = async (data: OnboardTenantInput) => {
   const subdomain = data.subdomain.toLowerCase();
@@ -72,7 +104,7 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
   }
 
   const tenantPrisma = tenantPrismaManager.getClient(newTenant.subdomain);
-  const adminUser = await tenantPrisma.user.create({
+  await tenantPrisma.user.create({
     data: {
       name: data.ownerName,
       email: data.ownerEmail,
@@ -84,18 +116,7 @@ export const onboardTenant = async (data: OnboardTenantInput) => {
 
   return {
     tenant: newTenant,
-    adminUser: {
-      id: adminUser.id,
-      email: adminUser.email,
-      role: adminUser.role,
-    },
   };
-};
-
-type TenantListFilters = {
-  search?: string;
-  fromDate?: string;
-  toDate?: string;
 };
 
 export const getAllTenants = async (
@@ -103,6 +124,8 @@ export const getAllTenants = async (
   filters: TenantListFilters = {},
 ): Promise<PaginatedResult<any>> => {
   const where: any = {};
+  let parsedFromDate: Date | undefined;
+  let parsedToDate: Date | undefined;
 
   if (filters.search) {
     const term = filters.search.trim();
@@ -115,20 +138,38 @@ export const getAllTenants = async (
     }
   }
 
+  if (filters.fromDate) {
+    parsedFromDate = new Date(filters.fromDate);
+    if (Number.isNaN(parsedFromDate.getTime())) {
+      throw new AppError("Invalid fromDate", 400);
+    }
+  }
+
+  if (filters.toDate) {
+    parsedToDate = new Date(filters.toDate);
+    if (Number.isNaN(parsedToDate.getTime())) {
+      throw new AppError("Invalid toDate", 400);
+    }
+  }
+
+  if (parsedFromDate && parsedToDate && parsedToDate < parsedFromDate) {
+    throw new AppError("toDate should not be less than fromDate", 400);
+  }
+
   if (filters.fromDate || filters.toDate) {
     where.createdAt = {};
-    if (filters.fromDate) {
-      where.createdAt.gte = new Date(filters.fromDate);
+    if (parsedFromDate) {
+      where.createdAt.gte = parsedFromDate;
     }
-    if (filters.toDate) {
-      where.createdAt.lte = new Date(filters.toDate);
+    if (parsedToDate) {
+      where.createdAt.lte = parsedToDate;
     }
   }
 
   const [items, total] = await globalPrisma.$transaction([
     globalPrisma.tenant.findMany({
       where,
-      include: { bankAccount: true },
+      select: selectTenantWithBankAccount,
       orderBy: { createdAt: "desc" },
       skip: pagination.skip,
       take: pagination.take,
@@ -167,7 +208,7 @@ export const getTenantData = async (subdomain: string) => {
   const normalizedSubdomain = subdomain.toLowerCase();
   const tenant = await globalPrisma.tenant.findUnique({
     where: { subdomain: normalizedSubdomain },
-    include: { bankAccount: true },
+    select: selectTenantWithBankAccount,
   });
 
   if (!tenant) {

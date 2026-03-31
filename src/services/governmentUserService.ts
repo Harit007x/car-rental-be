@@ -33,8 +33,6 @@ const selectGovernmentUser = {
   address: true,
   role: true,
   status: true,
-  createdAt: true,
-  updatedAt: true,
 };
 
 export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
@@ -78,6 +76,8 @@ export const getGovernmentUsers = async (
     role: "GOVERNMENT_ADMIN",
     status: { not: "DELETED" },
   };
+  let parsedFromDate: Date | undefined;
+  let parsedToDate: Date | undefined;
 
   if (filters.search) {
     const term = filters.search.trim();
@@ -90,13 +90,31 @@ export const getGovernmentUsers = async (
     }
   }
 
+  if (filters.fromDate) {
+    parsedFromDate = new Date(filters.fromDate);
+    if (Number.isNaN(parsedFromDate.getTime())) {
+      throw new AppError("Invalid fromDate", 400);
+    }
+  }
+
+  if (filters.toDate) {
+    parsedToDate = new Date(filters.toDate);
+    if (Number.isNaN(parsedToDate.getTime())) {
+      throw new AppError("Invalid toDate", 400);
+    }
+  }
+
+  if (parsedFromDate && parsedToDate && parsedToDate < parsedFromDate) {
+    throw new AppError("toDate should not be less than fromDate", 400);
+  }
+
   if (filters.fromDate || filters.toDate) {
     where.createdAt = {};
-    if (filters.fromDate) {
-      where.createdAt.gte = new Date(filters.fromDate);
+    if (parsedFromDate) {
+      where.createdAt.gte = parsedFromDate;
     }
-    if (filters.toDate) {
-      where.createdAt.lte = new Date(filters.toDate);
+    if (parsedToDate) {
+      where.createdAt.lte = parsedToDate;
     }
   }
 
