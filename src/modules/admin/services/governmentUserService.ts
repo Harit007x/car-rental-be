@@ -1,7 +1,10 @@
-import { AppError } from "../lib/AppError";
-import { globalPrisma } from "../lib/prisma";
-import { hashPassword } from "../lib/password";
-import type { PaginationParams, PaginatedResult } from "../lib/pagination";
+import { AppError } from "../../../lib/AppError";
+import { globalPrisma } from "../../../lib/prisma";
+import { hashPassword } from "../../../lib/password";
+import type {
+  PaginationParams,
+  PaginatedResult,
+} from "../../../lib/pagination";
 
 interface CreateGovernmentUserInput {
   name: string;
@@ -31,12 +34,12 @@ const selectGovernmentUser = {
   mobile: true,
   email: true,
   address: true,
-  role: true,
   status: true,
+  mustChangePassword: true,
 };
 
 export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
-  const existingEmail = await globalPrisma.adminUser.findUnique({
+  const existingEmail = await globalPrisma.governmentUser.findUnique({
     where: { email: data.email },
   });
 
@@ -44,7 +47,7 @@ export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
     throw new AppError("Email already in use", 409);
   }
 
-  const existingMobile = await globalPrisma.adminUser.findUnique({
+  const existingMobile = await globalPrisma.governmentUser.findUnique({
     where: { mobile: data.mobile },
   });
 
@@ -54,14 +57,13 @@ export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
 
   const hashedPassword = await hashPassword(data.password);
 
-  return globalPrisma.adminUser.create({
+  return globalPrisma.governmentUser.create({
     data: {
       name: data.name,
       mobile: data.mobile,
       email: data.email,
       address: data.address,
-      password: hashedPassword,
-      role: "GOVERNMENT_ADMIN",
+      passwordHash: hashedPassword,
       status: "ACTIVE",
     },
     select: selectGovernmentUser,
@@ -73,8 +75,7 @@ export const getGovernmentUsers = async (
   filters: GovernmentUserFilters = {},
 ): Promise<PaginatedResult<any>> => {
   const where: any = {
-    role: "GOVERNMENT_ADMIN",
-    status: { not: "DELETED" },
+    deletedAt: null,
   };
   let parsedFromDate: Date | undefined;
   let parsedToDate: Date | undefined;
@@ -119,14 +120,14 @@ export const getGovernmentUsers = async (
   }
 
   const [items, total] = await globalPrisma.$transaction([
-    globalPrisma.adminUser.findMany({
+    globalPrisma.governmentUser.findMany({
       where,
       select: selectGovernmentUser,
       orderBy: { createdAt: "desc" },
       skip: pagination.skip,
       take: pagination.take,
     }),
-    globalPrisma.adminUser.count({ where }),
+    globalPrisma.governmentUser.count({ where }),
   ]);
 
   return {
@@ -139,8 +140,8 @@ export const getGovernmentUsers = async (
 };
 
 export const getGovernmentUserById = async (userId: string) => {
-  const user = await globalPrisma.adminUser.findFirst({
-    where: { id: userId, role: "GOVERNMENT_ADMIN" },
+  const user = await globalPrisma.governmentUser.findFirst({
+    where: { id: userId, deletedAt: null },
     select: selectGovernmentUser,
   });
 
@@ -155,8 +156,8 @@ export const updateGovernmentUser = async (
   userId: string,
   data: UpdateGovernmentUserInput,
 ) => {
-  const existing = await globalPrisma.adminUser.findFirst({
-    where: { id: userId, role: "GOVERNMENT_ADMIN" },
+  const existing = await globalPrisma.governmentUser.findFirst({
+    where: { id: userId, deletedAt: null },
   });
 
   if (!existing) {
@@ -164,7 +165,7 @@ export const updateGovernmentUser = async (
   }
 
   if (data.email && data.email !== existing.email) {
-    const emailTaken = await globalPrisma.adminUser.findUnique({
+    const emailTaken = await globalPrisma.governmentUser.findUnique({
       where: { email: data.email },
     });
     if (emailTaken) {
@@ -173,7 +174,7 @@ export const updateGovernmentUser = async (
   }
 
   if (data.mobile && data.mobile !== existing.mobile) {
-    const mobileTaken = await globalPrisma.adminUser.findUnique({
+    const mobileTaken = await globalPrisma.governmentUser.findUnique({
       where: { mobile: data.mobile },
     });
     if (mobileTaken) {
@@ -189,10 +190,10 @@ export const updateGovernmentUser = async (
   };
 
   if (data.password) {
-    updateData.password = await hashPassword(data.password);
+    updateData.passwordHash = await hashPassword(data.password);
   }
 
-  return globalPrisma.adminUser.update({
+  return globalPrisma.governmentUser.update({
     where: { id: userId },
     data: updateData,
     select: selectGovernmentUser,
@@ -200,17 +201,17 @@ export const updateGovernmentUser = async (
 };
 
 export const softDeleteGovernmentUser = async (userId: string) => {
-  const existing = await globalPrisma.adminUser.findFirst({
-    where: { id: userId, role: "GOVERNMENT_ADMIN" },
+  const existing = await globalPrisma.governmentUser.findFirst({
+    where: { id: userId, deletedAt: null },
   });
 
   if (!existing) {
     throw new AppError("Government user not found", 404);
   }
 
-  return globalPrisma.adminUser.update({
+  return globalPrisma.governmentUser.update({
     where: { id: userId },
-    data: { status: "DELETED" },
+    data: { status: "DELETED", deletedAt: new Date() },
     select: selectGovernmentUser,
   });
 };
@@ -219,15 +220,15 @@ export const updateGovernmentUserStatus = async (
   userId: string,
   status: "ACTIVE" | "INACTIVE",
 ) => {
-  const existing = await globalPrisma.adminUser.findFirst({
-    where: { id: userId, role: "GOVERNMENT_ADMIN" },
+  const existing = await globalPrisma.governmentUser.findFirst({
+    where: { id: userId, deletedAt: null },
   });
 
   if (!existing) {
     throw new AppError("Government user not found", 404);
   }
 
-  return globalPrisma.adminUser.update({
+  return globalPrisma.governmentUser.update({
     where: { id: userId },
     data: { status },
     select: selectGovernmentUser,

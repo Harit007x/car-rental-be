@@ -1,6 +1,9 @@
 import express, { Router } from "express";
-import { authenticate, authorize } from "../middlewares/authMiddleware";
-import { validate } from "../middlewares/validateMiddleware";
+import {
+  authenticate,
+  authorizeModuleAction,
+} from "../../../middlewares/authMiddleware";
+import { validate } from "../../../middlewares/validateMiddleware";
 import * as cmsPageController from "../controllers/cmsPageController";
 import { paginationQuerySchema } from "../validations/paginationValidation";
 import {
@@ -14,7 +17,7 @@ const router: Router = express.Router();
 router.post(
   "/",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("cms_pages", "add"),
   validate(createCmsPageSchema),
   cmsPageController.createCmsPage,
 );
@@ -22,7 +25,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("cms_pages", "view"),
   validate(paginationQuerySchema),
   cmsPageController.getCmsPages,
 );
@@ -30,7 +33,7 @@ router.get(
 router.get(
   "/:pageId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("cms_pages", "view"),
   validate(cmsPageIdParamsSchema),
   cmsPageController.getCmsPageById,
 );
@@ -38,7 +41,7 @@ router.get(
 router.put(
   "/:pageId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("cms_pages", "edit"),
   validate(updateCmsPageSchema),
   cmsPageController.updateCmsPage,
 );
@@ -46,7 +49,7 @@ router.put(
 router.delete(
   "/:pageId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("cms_pages", "delete"),
   validate(cmsPageIdParamsSchema),
   cmsPageController.deleteCmsPage,
 );

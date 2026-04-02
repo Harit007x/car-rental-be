@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getPaginationParams } from "../lib/pagination";
+import { getPaginationParams } from "../../../lib/pagination";
 import * as subscriptionService from "../services/subscriptionService";
 
 export const createSubscription = async (
@@ -9,7 +9,11 @@ export const createSubscription = async (
 ) => {
   try {
     const subscription = await subscriptionService.createSubscription(req.body);
-    res.status(201).json({ success: true, data: subscription });
+    res.status(201).json({
+      success: true,
+      message: "Subscription created successfully",
+      data: subscription,
+    });
   } catch (error) {
     next(error);
   }
@@ -23,7 +27,11 @@ export const getSubscriptions = async (
   try {
     const pagination = getPaginationParams(req.query);
     const result = await subscriptionService.getSubscriptions(pagination);
-    res.json({ success: true, data: result });
+    res.json({
+      success: true,
+      message: "Subscriptions retrieved successfully",
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -38,7 +46,11 @@ export const getSubscriptionById = async (
     const subscription = await subscriptionService.getSubscriptionById(
       req.params.subscriptionId,
     );
-    res.json({ success: true, data: subscription });
+    res.json({
+      success: true,
+      message: "Subscription retrieved successfully",
+      data: subscription,
+    });
   } catch (error) {
     next(error);
   }
@@ -54,7 +66,11 @@ export const updateSubscription = async (
       req.params.subscriptionId,
       req.body,
     );
-    res.json({ success: true, data: subscription });
+    res.json({
+      success: true,
+      message: "Subscription updated successfully",
+      data: subscription,
+    });
   } catch (error) {
     next(error);
   }
@@ -70,7 +86,11 @@ export const updateSubscriptionStatus = async (
       req.params.subscriptionId,
       req.body.status,
     );
-    res.json({ success: true, data: subscription });
+    res.json({
+      success: true,
+      message: "Subscription status updated successfully",
+      data: subscription,
+    });
   } catch (error) {
     next(error);
   }
@@ -85,7 +105,11 @@ export const deleteSubscription = async (
     const subscription = await subscriptionService.softDeleteSubscription(
       req.params.subscriptionId,
     );
-    res.json({ success: true, data: subscription });
+    res.json({
+      success: true,
+      message: "Subscription deleted successfully",
+      data: subscription,
+    });
   } catch (error) {
     next(error);
   }

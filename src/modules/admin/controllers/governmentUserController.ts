@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getPaginationParams } from "../lib/pagination";
+import { getPaginationParams } from "../../../lib/pagination";
 import * as governmentUserService from "../services/governmentUserService";
 
 export const createGovernmentUser = async (
@@ -9,7 +9,11 @@ export const createGovernmentUser = async (
 ) => {
   try {
     const user = await governmentUserService.createGovernmentUser(req.body);
-    res.status(201).json({ success: true, data: user });
+    res.status(201).json({
+      success: true,
+      message: "Government user created successfully",
+      data: user,
+    });
   } catch (error) {
     next(error);
   }
@@ -27,7 +31,11 @@ export const getGovernmentUsers = async (
       fromDate: req.query.fromDate as string | undefined,
       toDate: req.query.toDate as string | undefined,
     });
-    res.json({ success: true, data: result });
+    res.json({
+      success: true,
+      message: "Government users retrieved successfully",
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -42,7 +50,11 @@ export const getGovernmentUserById = async (
     const user = await governmentUserService.getGovernmentUserById(
       req.params.userId,
     );
-    res.json({ success: true, data: user });
+    res.json({
+      success: true,
+      message: "Government user retrieved successfully",
+      data: user,
+    });
   } catch (error) {
     next(error);
   }
@@ -58,7 +70,11 @@ export const updateGovernmentUser = async (
       req.params.userId,
       req.body,
     );
-    res.json({ success: true, data: user });
+    res.json({
+      success: true,
+      message: "Government user updated successfully",
+      data: user,
+    });
   } catch (error) {
     next(error);
   }
@@ -74,7 +90,11 @@ export const updateGovernmentUserStatus = async (
       req.params.userId,
       req.body.status,
     );
-    res.json({ success: true, data: user });
+    res.json({
+      success: true,
+      message: "Government user status updated successfully",
+      data: user,
+    });
   } catch (error) {
     next(error);
   }
@@ -89,7 +109,11 @@ export const deleteGovernmentUser = async (
     const user = await governmentUserService.softDeleteGovernmentUser(
       req.params.userId,
     );
-    res.json({ success: true, data: user });
+    res.json({
+      success: true,
+      message: "Government user deleted successfully",
+      data: user,
+    });
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getPaginationParams } from "../lib/pagination";
+import { getPaginationParams } from "../../../lib/pagination";
 import * as cmsPageService from "../services/cmsPageService";
 
 export const createCmsPage = async (
@@ -9,7 +9,11 @@ export const createCmsPage = async (
 ) => {
   try {
     const page = await cmsPageService.createCmsPage(req.body);
-    res.status(201).json({ success: true, data: page });
+    res.status(201).json({
+      success: true,
+      message: "Cms page created successfully",
+      data: page,
+    });
   } catch (error) {
     next(error);
   }
@@ -23,7 +27,11 @@ export const getCmsPages = async (
   try {
     const pagination = getPaginationParams(req.query);
     const result = await cmsPageService.getCmsPages(pagination);
-    res.json({ success: true, data: result });
+    res.json({
+      success: true,
+      message: "Cms pages retrieved successfully",
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -36,7 +44,11 @@ export const getCmsPageById = async (
 ) => {
   try {
     const page = await cmsPageService.getCmsPageById(req.params.pageId);
-    res.json({ success: true, data: page });
+    res.json({
+      success: true,
+      message: "Cms page retrieved successfully",
+      data: page,
+    });
   } catch (error) {
     next(error);
   }
@@ -52,7 +64,11 @@ export const updateCmsPage = async (
       req.params.pageId,
       req.body,
     );
-    res.json({ success: true, data: page });
+    res.json({
+      success: true,
+      message: "Cms page updated successfully",
+      data: page,
+    });
   } catch (error) {
     next(error);
   }
@@ -65,7 +81,11 @@ export const deleteCmsPage = async (
 ) => {
   try {
     const page = await cmsPageService.deleteCmsPage(req.params.pageId);
-    res.json({ success: true, data: page });
+    res.json({
+      success: true,
+      message: "Cms page deleted successfully",
+      data: page,
+    });
   } catch (error) {
     next(error);
   }

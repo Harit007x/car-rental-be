@@ -1,6 +1,9 @@
-import { AppError } from "../lib/AppError";
-import { globalPrisma } from "../lib/prisma";
-import type { PaginationParams, PaginatedResult } from "../lib/pagination";
+import { AppError } from "../../../lib/AppError";
+import { globalPrisma } from "../../../lib/prisma";
+import type {
+  PaginationParams,
+  PaginatedResult,
+} from "../../../lib/pagination";
 
 interface CreateCmsPageInput {
   title: string;

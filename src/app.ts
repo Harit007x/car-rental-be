@@ -1,10 +1,10 @@
-import express, { Express } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './config/swagger';
-import { errorHandler } from './middlewares/errorMiddleware';
-import routes from './routes';
+import express, { Express } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger";
+import { errorHandler } from "./middlewares/errorMiddleware";
+import routes from "./routes";
 
 const app: Express = express();
 
@@ -14,10 +14,10 @@ app.use(cors());
 app.use(express.json());
 
 // Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
-app.use('/api', routes);
+app.use("/api", routes);
 
 // Error Handling
 app.use(errorHandler);

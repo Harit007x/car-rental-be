@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const subscriptionFeatureSchema = z.object({
+  featureId: z.string().uuid(),
+  order: z.number().int().min(0).optional(),
+});
+
+const subscriptionFeatureInputSchema = z.union([
+  z.string().uuid(),
+  subscriptionFeatureSchema,
+]);
+
 export const subscriptionIdParamsSchema = z.object({
   params: z.object({
     subscriptionId: z.string().uuid(),
@@ -17,7 +27,7 @@ export const createSubscriptionSchema = z.object({
   body: z.object({
     name: z.string().min(2),
     description: z.string().min(2),
-    features: z.array(z.string().min(1)).min(1),
+    features: z.array(subscriptionFeatureInputSchema).min(1),
     price: z.number().min(0),
   }),
 });
@@ -27,7 +37,7 @@ export const updateSubscriptionSchema = z.object({
     .object({
       name: z.string().min(2).optional(),
       description: z.string().min(2).optional(),
-      features: z.array(z.string().min(1)).min(1).optional(),
+      features: z.array(subscriptionFeatureInputSchema).min(1).optional(),
       price: z.number().min(0).optional(),
     })
     .partial(),

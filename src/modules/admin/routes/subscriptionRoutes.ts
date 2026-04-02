@@ -1,6 +1,9 @@
 import express, { Router } from "express";
-import { authenticate, authorize } from "../middlewares/authMiddleware";
-import { validate } from "../middlewares/validateMiddleware";
+import {
+  authenticate,
+  authorizeModuleAction,
+} from "../../../middlewares/authMiddleware";
+import { validate } from "../../../middlewares/validateMiddleware";
 import * as subscriptionController from "../controllers/subscriptionController";
 import {
   createSubscriptionSchema,
@@ -15,7 +18,7 @@ const router: Router = express.Router();
 router.post(
   "/",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "add"),
   validate(createSubscriptionSchema),
   subscriptionController.createSubscription,
 );
@@ -23,7 +26,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "view"),
   validate(subscriptionListQuerySchema),
   subscriptionController.getSubscriptions,
 );
@@ -31,7 +34,7 @@ router.get(
 router.get(
   "/:subscriptionId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "view"),
   validate(subscriptionIdParamsSchema),
   subscriptionController.getSubscriptionById,
 );
@@ -39,7 +42,7 @@ router.get(
 router.put(
   "/:subscriptionId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "edit"),
   validate(updateSubscriptionSchema),
   subscriptionController.updateSubscription,
 );
@@ -47,7 +50,7 @@ router.put(
 router.patch(
   "/:subscriptionId/status",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "edit"),
   validate(subscriptionStatusSchema),
   subscriptionController.updateSubscriptionStatus,
 );
@@ -55,7 +58,7 @@ router.patch(
 router.delete(
   "/:subscriptionId",
   authenticate,
-  authorize("SUPER_ADMIN"),
+  authorizeModuleAction("subscriptions", "delete"),
   validate(subscriptionIdParamsSchema),
   subscriptionController.deleteSubscription,
 );
