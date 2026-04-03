@@ -198,15 +198,16 @@ model Feature {
 }
 
 model Subscription {
-  id                   String                @id @default(uuid())
-  name                 String                @unique
-  description          String
-  price                Decimal               @db.Decimal(10, 2)
-  status               SubscriptionStatus    @default(ENABLED)
-  deletedAt            DateTime?
-  subscriptionFeatures SubscriptionFeature[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id                         String                      @id @default(uuid())
+  name                       String                      @unique
+  description                String
+  price                      Decimal                     @db.Decimal(10, 2)
+  status                     SubscriptionStatus          @default(ENABLED)
+  deletedAt                  DateTime?
+  subscriptionFeatures       SubscriptionFeature[]
+  rentalCompanySubscriptions RentalCompanySubscription[]
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
 
   @@index([status])
   @@index([deletedAt])
@@ -232,33 +233,52 @@ model CmsPage {
   updatedAt DateTime @updatedAt
 }
 
-model Tenant {
-  id                 String        @id @default(uuid())
-  subdomain          String        @unique
-  businessName       String
-  registrationNumber String
-  ownerName          String
-  ownerPhone         String
-  ownerEmail         String
-  businessAddress    String
-  city               String
-  state              String
-  country            String
-  businessType       BusinessType
-  fleetSize          Int
-  bankAccount        BankAccount?
-  status             CompanyStatus @default(INACTIVE)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+model RentalCompany {
+  id                        String                      @id @default(uuid())
+  subdomain                 String                      @unique
+  businessName              String
+  registrationNumber        String
+  ownerName                 String
+  ownerPhone                String
+  ownerEmail                String
+  businessAddress           String
+  city                      String
+  state                     String
+  country                   String
+  serviceOperationLocations String[]
+  businessType              BusinessType
+  fleetSize                 Int
+  bankAccount               BankAccount?
+  subscriptions             RentalCompanySubscription[]
+  status                    CompanyStatus               @default(INACTIVE)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
 }
 
 model BankAccount {
-  id          String   @id @default(uuid())
-  tenantId    String   @unique
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  accountName String
-  accountNo   String
-  bankName    String
-  ifscCode    String
-  createdAt   DateTime @default(now())
+  id              String        @id @default(uuid())
+  rentalCompanyId String        @unique
+  rentalCompany   RentalCompany @relation(fields: [rentalCompanyId], references: [id])
+  accountName     String
+  accountNo       String
+  bankName        String
+  ifscCode        String
+  createdAt       DateTime      @default(now())
+}
+
+model RentalCompanySubscription {
+  id              String        @id @default(uuid())
+  rentalCompanyId String
+  subscriptionId  String
+  startDate       DateTime
+  endDate         DateTime?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  rentalCompany   RentalCompany @relation(fields: [rentalCompanyId], references: [id], onDelete: Cascade)
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([rentalCompanyId])
+  @@index([subscriptionId])
+  @@index([isActive])
 }
