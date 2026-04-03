@@ -2,6 +2,23 @@ import { Request, Response, NextFunction } from "express";
 import { getPaginationParams } from "../../../lib/pagination";
 import * as subscriptionService from "../services/subscriptionService";
 
+export const getAllFeatures = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const features = await subscriptionService.getAllFeatures();
+    res.json({
+      success: true,
+      message: "Features retrieved successfully",
+      data: features,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createSubscription = async (
   req: Request,
   res: Response,

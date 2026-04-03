@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate && prisma generate --config prisma/tenant.config.ts",
     "prisma:merge": "prisma db push",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",

@@ -181,6 +181,31 @@ export const updateAdmin = async (
   }
 };
 
+export const updateAdminStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const result = await adminService.updateAdminStatus(
+      req.user.userId,
+      req.params.adminId,
+      req.body.status,
+    );
+    res.json({
+      success: true,
+      message: "Admin status updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteAdmin = async (
   req: Request,
   res: Response,

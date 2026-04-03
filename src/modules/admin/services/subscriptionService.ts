@@ -105,6 +105,20 @@ const serializeSubscription = (subscription: any) => ({
   })),
 });
 
+export const getAllFeatures = async () => {
+  return globalPrisma.feature.findMany({
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      description: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+};
+
 export const createSubscription = async (data: CreateSubscriptionInput) => {
   const existing = await globalPrisma.subscription.findUnique({
     where: { name: data.name },

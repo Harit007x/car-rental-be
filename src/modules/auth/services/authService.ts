@@ -61,7 +61,6 @@ export const loginAdmin = async (data: LoginInput) => {
     user: {
       id: user.id,
       email: user.email,
-      userType: "ADMIN",
       isSuperAdmin: user.isSuperAdmin,
     },
   };
@@ -102,7 +101,6 @@ export const loginGovernmentUser = async (data: LoginInput) => {
     user: {
       id: user.id,
       email: user.email,
-      userType: "GOVERNMENT",
     },
   };
 };
@@ -138,25 +136,23 @@ export const refreshAdminTokens = async (refreshToken: string) => {
     throw new AppError("User not found", 404);
   }
 
-  if (user.userType === "ADMIN") {
-    const admin = await globalPrisma.admin.findFirst({
-      where: { id: user.id, deletedAt: null, status: "ACTIVE" },
-      include: {
-        role: {
-          select: {
-            status: true,
-            deletedAt: true,
-          },
+  const admin = await globalPrisma.admin.findFirst({
+    where: { id: user.id, deletedAt: null, status: "ACTIVE" },
+    include: {
+      role: {
+        select: {
+          status: true,
+          deletedAt: true,
         },
       },
-    });
+    },
+  });
 
-    if (!admin) {
-      throw new AppError("User not found", 404);
-    }
-
-    ensureAdminRoleIsActive(admin);
+  if (!admin) {
+    throw new AppError("User not found", 404);
   }
+
+  ensureAdminRoleIsActive(admin);
 
   const accessToken = generateAccessToken({
     userId: user.id,
@@ -168,7 +164,6 @@ export const refreshAdminTokens = async (refreshToken: string) => {
     user: {
       id: user.id,
       email: user.email,
-      userType: user.userType,
       isSuperAdmin: user.isSuperAdmin,
     },
   };
@@ -218,7 +213,6 @@ export const refreshGovernmentTokens = async (refreshToken: string) => {
     user: {
       id: user.id,
       email: user.email,
-      userType: user.userType,
     },
   };
 };
@@ -309,7 +303,7 @@ const getGlobalUserByType = async (
       select: { id: true, email: true, isSuperAdmin: true },
     });
 
-    return user ? { ...user, userType: "ADMIN" as const } : null;
+    return user ? { ...user } : null;
   }
 
   const user = await globalPrisma.governmentUser.findFirst({
@@ -317,9 +311,7 @@ const getGlobalUserByType = async (
     select: { id: true, email: true },
   });
 
-  return user
-    ? { ...user, userType: "GOVERNMENT" as const, isSuperAdmin: false }
-    : null;
+  return user ? { ...user, isSuperAdmin: false } : null;
 };
 
 const ensureAdminRoleIsActive = (admin: {

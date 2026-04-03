@@ -32,10 +32,17 @@ export const updateAdminSchema = z.object({
     .object({
       name: z.string().min(2).optional(),
       email: z.string().email().optional(),
-      password: z.string().min(8).optional(),
       roleId: z.string().uuid().nullable().optional(),
-      status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
       permissions: z.array(permissionSchema).optional(),
     })
     .partial(),
+});
+
+export const adminStatusSchema = z.object({
+  params: z.object({
+    adminId: z.string().uuid(),
+  }),
+  body: z.object({
+    status: z.enum(["ACTIVE", "INACTIVE"]),
+  }),
 });

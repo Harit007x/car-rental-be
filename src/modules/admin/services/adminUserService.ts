@@ -31,7 +31,6 @@ interface UpdateAdminInput {
   email?: string;
   password?: string;
   roleId?: string | null;
-  status?: "ACTIVE" | "INACTIVE";
   permissions?: Array<{
     moduleId: string;
     canView?: boolean;
@@ -67,7 +66,6 @@ const selectAdminProfile = {
   role: {
     select: {
       id: true,
-      code: true,
       name: true,
     },
   },
@@ -84,7 +82,6 @@ const selectAdminListItem = {
   role: {
     select: {
       id: true,
-      code: true,
       name: true,
     },
   },
@@ -227,7 +224,6 @@ export const getCurrentAdminUser = async (adminId: string) => {
       role: {
         select: {
           id: true,
-          code: true,
           name: true,
           status: true,
           deletedAt: true,
@@ -277,7 +273,6 @@ export const getCurrentAdminUser = async (adminId: string) => {
       role: admin.role
         ? {
             id: admin.role.id,
-            code: admin.role.code,
             name: admin.role.name,
           }
         : null,
@@ -465,13 +460,6 @@ export const updateAdmin = async (
     throw new AppError("You do not have permission to update super admin", 403);
   }
 
-  if (typeof data.status !== "undefined" && !actor.isSuperAdmin) {
-    throw new AppError(
-      "Only super admin can activate or deactivate team members",
-      403,
-    );
-  }
-
   if (data.email && data.email !== existing.email) {
     const emailTaken = await globalPrisma.admin.findUnique({
       where: { email: data.email },
@@ -498,13 +486,7 @@ export const updateAdmin = async (
       name: data.name,
       email: data.email,
       roleId: data.roleId,
-      status: data.status,
     };
-
-    if (data.password) {
-      updateData.passwordHash = await hashPassword(data.password);
-      updateData.mustChangePassword = true;
-    }
 
     const updated = await tx.admin.update({
       where: { id: adminId },
@@ -554,6 +536,33 @@ export const updateAdmin = async (
     }
 
     return updated;
+  });
+};
+
+export const updateAdminStatus = async (
+  actorAdminId: string,
+  adminId: string,
+  status: "ACTIVE" | "INACTIVE",
+) => {
+  await ensureActorIsActiveAdmin(actorAdminId);
+
+  const existing = await globalPrisma.admin.findFirst({
+    where: { id: adminId, deletedAt: null },
+    select: { id: true, isSuperAdmin: true },
+  });
+
+  if (!existing) {
+    throw new AppError("Admin not found", 404);
+  }
+
+  if (existing.isSuperAdmin) {
+    throw new AppError("Super admin status cannot be updated", 403);
+  }
+
+  return globalPrisma.admin.update({
+    where: { id: adminId },
+    data: { status },
+    select: selectAdminListItem,
   });
 };
 

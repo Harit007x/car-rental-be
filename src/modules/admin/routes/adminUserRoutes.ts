@@ -4,6 +4,7 @@ import { superAdminRegisterSchema } from "../../auth/validations/authValidation"
 import { adminProfileUpdateSchema } from "../validations/adminProfileValidation";
 import { paginationWithSearchQuerySchema } from "../validations/paginationValidation";
 import {
+  adminStatusSchema,
   adminIdParamsSchema,
   createAdminSchema,
   updateAdminSchema,
@@ -70,6 +71,14 @@ router.put(
   authorizeModuleAction("admin_users", "edit"),
   validate(updateAdminSchema),
   adminController.updateAdmin,
+);
+
+router.patch(
+  "/users/:adminId/status",
+  authenticate,
+  authorizeModuleAction("admin_users", "edit"),
+  validate(adminStatusSchema),
+  adminController.updateAdminStatus,
 );
 
 router.delete(

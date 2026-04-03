@@ -15,6 +15,13 @@ import {
 
 const router: Router = express.Router();
 
+router.get(
+  "/features",
+  authenticate,
+  authorizeModuleAction("subscriptions", "view"),
+  subscriptionController.getAllFeatures,
+);
+
 router.post(
   "/",
   authenticate,
