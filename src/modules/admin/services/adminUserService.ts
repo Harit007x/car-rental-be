@@ -1,6 +1,7 @@
 import { AppError } from "../../../lib/AppError";
 import { globalPrisma } from "../../../lib/prisma";
 import { hashPassword } from "../../../lib/password";
+import { randomInt } from "crypto";
 import type {
   PaginationParams,
   PaginatedResult,
@@ -15,14 +16,13 @@ interface RegisterSuperAdminInput {
 interface CreateAdminInput {
   name: string;
   email: string;
-  password: string;
-  roleId?: string;
-  permissions?: Array<{
+  roleId: string;
+  permissions: Array<{
     moduleId: string;
-    canView?: boolean;
-    canAdd?: boolean;
-    canEdit?: boolean;
-    canDelete?: boolean;
+    canView: boolean;
+    canAdd: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
   }>;
 }
 
@@ -33,10 +33,10 @@ interface UpdateAdminInput {
   roleId?: string | null;
   permissions?: Array<{
     moduleId: string;
-    canView?: boolean;
-    canAdd?: boolean;
-    canEdit?: boolean;
-    canDelete?: boolean;
+    canView: boolean;
+    canAdd: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
   }>;
 }
 
@@ -51,26 +51,10 @@ type AdminListFilters = {
 
 type PermissionInput = {
   moduleId: string;
-  canView?: boolean;
-  canAdd?: boolean;
-  canEdit?: boolean;
-  canDelete?: boolean;
-};
-
-const selectAdminProfile = {
-  id: true,
-  name: true,
-  email: true,
-  isSuperAdmin: true,
-  roleId: true,
-  role: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  status: true,
-  mustChangePassword: true,
+  canView: boolean;
+  canAdd: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 };
 
 const selectAdminListItem = {
@@ -86,7 +70,7 @@ const selectAdminListItem = {
     },
   },
   status: true,
-  mustChangePassword: true,
+  createdAt: true,
 };
 
 const ensureActorIsActiveAdmin = async (actorAdminId: string) => {
@@ -104,38 +88,55 @@ const ensureActorIsActiveAdmin = async (actorAdminId: string) => {
 
 const normalizePermission = (permission: PermissionInput) => ({
   moduleId: permission.moduleId,
-  canView: permission.canView ?? false,
-  canAdd: permission.canAdd ?? false,
-  canEdit: permission.canEdit ?? false,
-  canDelete: permission.canDelete ?? false,
+  canView: permission.canView,
+  canAdd: permission.canAdd,
+  canEdit: permission.canEdit,
+  canDelete: permission.canDelete,
 });
 
-const mergePermissions = (
-  basePermissions: PermissionInput[],
-  overridePermissions: PermissionInput[],
-) => {
+const hasAnyPermissionEnabled = (permission: PermissionInput) =>
+  permission.canView ||
+  permission.canAdd ||
+  permission.canEdit ||
+  permission.canDelete;
+
+const sanitizePermissions = (permissions: PermissionInput[]) => {
   const map = new Map<string, ReturnType<typeof normalizePermission>>();
 
-  for (const permission of basePermissions) {
+  for (const permission of permissions) {
     map.set(permission.moduleId, normalizePermission(permission));
   }
 
-  for (const permission of overridePermissions) {
-    const existing = map.get(permission.moduleId);
-    const normalized = normalizePermission(permission);
+  return [...map.values()].filter(hasAnyPermissionEnabled);
+};
 
-    if (!existing) {
-      map.set(permission.moduleId, normalized);
-      continue;
-    }
+const generateTemporaryPassword = (length = 12) => {
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const symbols = "!@#$%^&*";
+  const allChars = uppercase + lowercase + digits + symbols;
 
-    existing.canView = existing.canView || normalized.canView;
-    existing.canAdd = existing.canAdd || normalized.canAdd;
-    existing.canEdit = existing.canEdit || normalized.canEdit;
-    existing.canDelete = existing.canDelete || normalized.canDelete;
+  const requiredChars = [
+    uppercase[randomInt(uppercase.length)],
+    lowercase[randomInt(lowercase.length)],
+    digits[randomInt(digits.length)],
+    symbols[randomInt(symbols.length)],
+  ];
+
+  const remainingChars = Array.from(
+    { length: Math.max(length - requiredChars.length, 0) },
+    () => allChars[randomInt(allChars.length)],
+  );
+
+  const passwordChars = [...requiredChars, ...remainingChars];
+
+  for (let i = passwordChars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
   }
 
-  return [...map.values()];
+  return passwordChars.join("");
 };
 
 export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
@@ -175,7 +176,7 @@ export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
 export const getAdminProfile = async (adminId: string) => {
   const admin = await globalPrisma.admin.findFirst({
     where: { id: adminId, deletedAt: null, status: "ACTIVE" },
-    select: selectAdminProfile,
+    select: selectAdminListItem,
   });
 
   if (!admin) {
@@ -213,7 +214,7 @@ export const updateAdminProfile = async (
       name: data.name,
       email: data.email,
     },
-    select: selectAdminProfile,
+    select: selectAdminListItem,
   });
 };
 
@@ -318,26 +319,11 @@ export const createAdmin = async (
     }
   }
 
-  const hashedPassword = await hashPassword(data.password);
+  const temporaryPassword = generateTemporaryPassword();
+  const hashedPassword = await hashPassword(temporaryPassword);
 
   return globalPrisma.$transaction(async (tx) => {
-    const rolePermissions = data.roleId
-      ? await tx.rolePermission.findMany({
-          where: { roleId: data.roleId },
-          select: {
-            moduleId: true,
-            canView: true,
-            canAdd: true,
-            canEdit: true,
-            canDelete: true,
-          },
-        })
-      : [];
-
-    const effectivePermissions = mergePermissions(
-      rolePermissions,
-      data.permissions ?? [],
-    );
+    const effectivePermissions = sanitizePermissions(data.permissions ?? []);
 
     const admin = await tx.admin.create({
       data: {
@@ -356,10 +342,10 @@ export const createAdmin = async (
         data: effectivePermissions.map((permission) => ({
           adminId: admin.id,
           moduleId: permission.moduleId,
-          canView: permission.canView ?? false,
-          canAdd: permission.canAdd ?? false,
-          canEdit: permission.canEdit ?? false,
-          canDelete: permission.canDelete ?? false,
+          canView: permission.canView,
+          canAdd: permission.canAdd,
+          canEdit: permission.canEdit,
+          canDelete: permission.canDelete,
         })),
       });
     }
@@ -416,14 +402,29 @@ export const getAdminById = async (actorAdminId: string, adminId: string) => {
   const admin = await globalPrisma.admin.findFirst({
     where: { id: adminId, deletedAt: null },
     select: {
-      ...selectAdminProfile,
+      ...selectAdminListItem,
       permissions: {
+        where: {
+          OR: [
+            { canView: true },
+            { canAdd: true },
+            { canEdit: true },
+            { canDelete: true },
+          ],
+        },
         select: {
           moduleId: true,
           canView: true,
           canAdd: true,
           canEdit: true,
           canDelete: true,
+          module: {
+            select: {
+              id: true,
+              key: true,
+              name: true,
+            },
+          },
         },
       },
     },
@@ -516,20 +517,19 @@ export const updateAdmin = async (
           })
         : [];
 
-      const explicitPermissions = data.permissions ?? [];
-      const effectivePermissions = isRoleUpdated
-        ? mergePermissions(rolePermissions, explicitPermissions)
-        : explicitPermissions.map(normalizePermission);
+      const effectivePermissions = data.permissions
+        ? sanitizePermissions(data.permissions)
+        : rolePermissions.map(normalizePermission);
 
       if (effectivePermissions.length > 0) {
         await tx.adminPermission.createMany({
           data: effectivePermissions.map((permission) => ({
             adminId,
             moduleId: permission.moduleId,
-            canView: permission.canView ?? false,
-            canAdd: permission.canAdd ?? false,
-            canEdit: permission.canEdit ?? false,
-            canDelete: permission.canDelete ?? false,
+            canView: permission.canView,
+            canAdd: permission.canAdd,
+            canEdit: permission.canEdit,
+            canDelete: permission.canDelete,
           })),
         });
       }
