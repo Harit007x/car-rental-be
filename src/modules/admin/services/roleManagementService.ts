@@ -54,6 +54,14 @@ const normalizePermission = (permission: PermissionInput) => ({
   canDelete: permission.canDelete ?? false,
 });
 
+const hasAnyPermissionEnabled = (
+  permission: ReturnType<typeof normalizePermission>,
+) =>
+  permission.canView ||
+  permission.canAdd ||
+  permission.canEdit ||
+  permission.canDelete;
+
 const ensurePermissionModulesExist = async (moduleIds: string[]) => {
   if (moduleIds.length === 0) {
     return;
@@ -177,6 +185,14 @@ export const getRoleById = async (actorAdminId: string, roleId: string) => {
     select: {
       ...selectRoleFields,
       permissions: {
+        where: {
+          OR: [
+            { canView: true },
+            { canAdd: true },
+            { canEdit: true },
+            { canDelete: true },
+          ],
+        },
         select: {
           moduleId: true,
           canView: true,
@@ -257,6 +273,17 @@ export const updateRole = async (
       }
       await ensurePermissionModulesExist(moduleIds);
 
+      const previousRolePermissions = await tx.rolePermission.findMany({
+        where: { roleId },
+        select: {
+          moduleId: true,
+          canView: true,
+          canAdd: true,
+          canEdit: true,
+          canDelete: true,
+        },
+      });
+
       await tx.rolePermission.deleteMany({
         where: { roleId },
       });
@@ -272,6 +299,129 @@ export const updateRole = async (
             canDelete: permission.canDelete,
           })),
         });
+      }
+
+      const roleAdmins = await tx.admin.findMany({
+        where: {
+          roleId,
+          deletedAt: null,
+          status: { not: "DELETED" },
+        },
+        select: { id: true },
+      });
+
+      if (roleAdmins.length > 0) {
+        const adminIds = roleAdmins.map((admin) => admin.id);
+        const previousRoleModuleIds = previousRolePermissions.map(
+          (permission) => permission.moduleId,
+        );
+        const syncModuleIds = [
+          ...new Set([...previousRoleModuleIds, ...moduleIds]),
+        ];
+
+        const previousRolePermissionMap = new Map(
+          previousRolePermissions.map((permission) => [
+            permission.moduleId,
+            permission,
+          ]),
+        );
+        const updatedRolePermissionMap = new Map(
+          normalizedPermissions.map((permission) => [
+            permission.moduleId,
+            permission,
+          ]),
+        );
+
+        const existingAdminPermissions = await tx.adminPermission.findMany({
+          where: {
+            adminId: { in: adminIds },
+            moduleId: { in: syncModuleIds },
+          },
+          select: {
+            adminId: true,
+            moduleId: true,
+            canView: true,
+            canAdd: true,
+            canEdit: true,
+            canDelete: true,
+          },
+        });
+
+        const existingAdminPermissionMap = new Map(
+          existingAdminPermissions.map((permission) => [
+            `${permission.adminId}:${permission.moduleId}`,
+            permission,
+          ]),
+        );
+
+        await tx.adminPermission.deleteMany({
+          where: {
+            adminId: { in: adminIds },
+            moduleId: { in: syncModuleIds },
+          },
+        });
+
+        const effectivePermissions = adminIds.flatMap((adminId) =>
+          syncModuleIds
+            .map((moduleId) => {
+              const previousRolePermission =
+                previousRolePermissionMap.get(moduleId) ??
+                normalizePermission({ moduleId });
+              const updatedRolePermission =
+                updatedRolePermissionMap.get(moduleId) ??
+                normalizePermission({ moduleId });
+              const existingAdminPermission =
+                existingAdminPermissionMap.get(`${adminId}:${moduleId}`) ??
+                normalizePermission({ moduleId });
+
+              const adminExtras = {
+                canView:
+                  existingAdminPermission.canView &&
+                  !previousRolePermission.canView,
+                canAdd:
+                  existingAdminPermission.canAdd &&
+                  !previousRolePermission.canAdd,
+                canEdit:
+                  existingAdminPermission.canEdit &&
+                  !previousRolePermission.canEdit,
+                canDelete:
+                  existingAdminPermission.canDelete &&
+                  !previousRolePermission.canDelete,
+              };
+
+              const mergedPermission = {
+                adminId,
+                moduleId,
+                canView: updatedRolePermission.canView || adminExtras.canView,
+                canAdd: updatedRolePermission.canAdd || adminExtras.canAdd,
+                canEdit: updatedRolePermission.canEdit || adminExtras.canEdit,
+                canDelete:
+                  updatedRolePermission.canDelete || adminExtras.canDelete,
+              };
+
+              return hasAnyPermissionEnabled(mergedPermission)
+                ? mergedPermission
+                : null;
+            })
+            .filter(
+              (
+                permission,
+              ): permission is {
+                adminId: string;
+                moduleId: string;
+                canView: boolean;
+                canAdd: boolean;
+                canEdit: boolean;
+                canDelete: boolean;
+              } => permission !== null,
+            ),
+        );
+
+        if (effectivePermissions.length > 0) {
+          await tx.adminPermission.createMany({
+            data: effectivePermissions,
+          });
+        }
       }
     }
   });
