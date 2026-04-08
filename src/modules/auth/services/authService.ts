@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { AppError } from "../../../lib/AppError";
 import { REFRESH_TOKEN_TTL_DAYS } from "../../../config/constants";
 import { globalPrisma } from "../../../lib/prisma";
@@ -15,6 +15,17 @@ interface LoginInput {
 }
 
 type GlobalUserType = "ADMIN" | "GOVERNMENT";
+
+const hashTokenIdentifier = (tokenIdentifier: string) =>
+  createHash("sha256").update(tokenIdentifier).digest("hex");
+
+const getTokenHashFromRefreshPayload = (payload: { tokenId?: string }) => {
+  if (!payload.tokenId) {
+    throw new AppError("Invalid refresh token", 401);
+  }
+
+  return hashTokenIdentifier(payload.tokenId);
+};
 
 export const loginAdmin = async (data: LoginInput) => {
   const user = await globalPrisma.admin.findUnique({
@@ -107,12 +118,10 @@ export const loginGovernmentUser = async (data: LoginInput) => {
 
 export const refreshAdminTokens = async (refreshToken: string) => {
   const payload = verifyRefreshToken(refreshToken);
-  if (!payload.tokenId) {
-    throw new AppError("Invalid refresh token", 401);
-  }
+  const tokenHash = getTokenHashFromRefreshPayload(payload);
 
   const existing = await globalPrisma.refreshToken.findUnique({
-    where: { tokenHash: payload.tokenId },
+    where: { tokenHash },
   });
 
   if (!existing || existing.revokedAt || existing.status === "REVOKED") {
@@ -125,7 +134,7 @@ export const refreshAdminTokens = async (refreshToken: string) => {
 
   if (existing.expiresAt <= new Date()) {
     await globalPrisma.refreshToken.update({
-      where: { tokenHash: payload.tokenId },
+      where: { tokenHash },
       data: { status: "EXPIRED" },
     });
     throw new AppError("Refresh token expired", 401);
@@ -171,12 +180,10 @@ export const refreshAdminTokens = async (refreshToken: string) => {
 
 export const refreshGovernmentTokens = async (refreshToken: string) => {
   const payload = verifyRefreshToken(refreshToken);
-  if (!payload.tokenId) {
-    throw new AppError("Invalid refresh token", 401);
-  }
+  const tokenHash = getTokenHashFromRefreshPayload(payload);
 
   const existing = await globalPrisma.refreshToken.findUnique({
-    where: { tokenHash: payload.tokenId },
+    where: { tokenHash },
   });
 
   if (!existing || existing.revokedAt || existing.status === "REVOKED") {
@@ -192,7 +199,7 @@ export const refreshGovernmentTokens = async (refreshToken: string) => {
 
   if (existing.expiresAt <= new Date()) {
     await globalPrisma.refreshToken.update({
-      where: { tokenHash: payload.tokenId },
+      where: { tokenHash },
       data: { status: "EXPIRED" },
     });
     throw new AppError("Refresh token expired", 401);
@@ -219,12 +226,10 @@ export const refreshGovernmentTokens = async (refreshToken: string) => {
 
 export const logoutAdmin = async (refreshToken: string) => {
   const payload = verifyRefreshToken(refreshToken);
-  if (!payload.tokenId) {
-    throw new AppError("Invalid refresh token", 401);
-  }
+  const tokenHash = getTokenHashFromRefreshPayload(payload);
 
   const existing = await globalPrisma.refreshToken.findUnique({
-    where: { tokenHash: payload.tokenId },
+    where: { tokenHash },
     select: { userType: true },
   });
 
@@ -233,19 +238,17 @@ export const logoutAdmin = async (refreshToken: string) => {
   }
 
   await globalPrisma.refreshToken.updateMany({
-    where: { tokenHash: payload.tokenId, userType: "ADMIN", revokedAt: null },
+    where: { tokenHash, userType: "ADMIN", revokedAt: null },
     data: { revokedAt: new Date(), status: "REVOKED" },
   });
 };
 
 export const logoutGovernment = async (refreshToken: string) => {
   const payload = verifyRefreshToken(refreshToken);
-  if (!payload.tokenId) {
-    throw new AppError("Invalid refresh token", 401);
-  }
+  const tokenHash = getTokenHashFromRefreshPayload(payload);
 
   const existing = await globalPrisma.refreshToken.findUnique({
-    where: { tokenHash: payload.tokenId },
+    where: { tokenHash },
     select: { userType: true },
   });
 
@@ -258,7 +261,7 @@ export const logoutGovernment = async (refreshToken: string) => {
 
   await globalPrisma.refreshToken.updateMany({
     where: {
-      tokenHash: payload.tokenId,
+      tokenHash,
       userType: "GOVERNMENT",
       revokedAt: null,
     },
@@ -268,13 +271,14 @@ export const logoutGovernment = async (refreshToken: string) => {
 
 const issueGlobalTokens = async (userId: string, userType: GlobalUserType) => {
   const tokenId = randomUUID();
+  const tokenHash = hashTokenIdentifier(tokenId);
   const expiresAt = new Date(
     Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
   await globalPrisma.refreshToken.create({
     data: {
-      tokenHash: tokenId,
+      tokenHash,
       userId,
       userType,
       expiresAt,
