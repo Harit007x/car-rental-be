@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../lib/AppError";
 import { ZodError } from "zod";
+import { env } from "../config/env";
 
 export const errorHandler = (
   err: any,
@@ -30,6 +31,6 @@ export const errorHandler = (
   res.status(statusCode).json({
     success: false,
     message: err.message || "Internal Server Error",
-    stack: process.env.NODE_ENV === "production" ? null : err.stack,
+    stack: env.NODE_ENV === "production" ? null : err.stack,
   });
 };
