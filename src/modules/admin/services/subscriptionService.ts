@@ -9,22 +9,30 @@ interface SubscriptionFeatureInput {
   featureId: string;
   order?: number;
 }
-type SubscriptionFeaturePayload = string | SubscriptionFeatureInput;
 
 interface CreateSubscriptionInput {
   name: string;
   description: string;
-  features: SubscriptionFeaturePayload[];
+  features: SubscriptionFeatureInput[];
   price: number;
 }
 
 interface UpdateSubscriptionInput {
   name?: string;
   description?: string;
-  features?: SubscriptionFeaturePayload[];
+  features?: SubscriptionFeatureInput[];
   price?: number;
   status?: "ENABLED" | "DISABLED";
 }
+
+const selectSubscriptionList = {
+  id: true,
+  name: true,
+  description: true,
+  price: true,
+  status: true,
+  createdAt: true,
+};
 
 const selectSubscription = {
   id: true,
@@ -32,6 +40,7 @@ const selectSubscription = {
   description: true,
   price: true,
   status: true,
+  createdAt: true,
   subscriptionFeatures: {
     orderBy: { order: "asc" as const },
     select: {
@@ -48,7 +57,7 @@ const selectSubscription = {
   },
 };
 
-const normalizeFeatures = (features: SubscriptionFeaturePayload[] = []) => {
+const normalizeFeatures = (features: SubscriptionFeatureInput[] = []) => {
   const normalized = features.map((item, index) => {
     if (typeof item === "string") {
       return {
@@ -96,6 +105,7 @@ const serializeSubscription = (subscription: any) => ({
   description: subscription.description,
   price: subscription.price,
   status: subscription.status,
+  createdAt: subscription.createdAt,
   features: (subscription.subscriptionFeatures || []).map((item: any) => ({
     id: item.feature.id,
     key: item.feature.key,
@@ -131,7 +141,7 @@ export const createSubscription = async (data: CreateSubscriptionInput) => {
   const features = normalizeFeatures(data.features);
   await ensureFeaturesExist(features.map((item) => item.featureId));
 
-  const subscription = await globalPrisma.subscription.create({
+  return await globalPrisma.subscription.create({
     data: {
       name: data.name,
       description: data.description,
@@ -144,10 +154,8 @@ export const createSubscription = async (data: CreateSubscriptionInput) => {
         })),
       },
     },
-    select: selectSubscription,
+    select: selectSubscriptionList,
   });
-
-  return serializeSubscription(subscription);
 };
 
 export const getSubscriptions = async (
@@ -160,7 +168,7 @@ export const getSubscriptions = async (
   const [items, total] = await globalPrisma.$transaction([
     globalPrisma.subscription.findMany({
       where,
-      select: selectSubscription,
+      select: selectSubscriptionList,
       orderBy: { createdAt: "desc" },
       skip: pagination.skip,
       take: pagination.take,
@@ -168,10 +176,8 @@ export const getSubscriptions = async (
     globalPrisma.subscription.count({ where }),
   ]);
 
-  const serializedItems = items.map(serializeSubscription);
-
   return {
-    items: serializedItems,
+    items,
     total,
     page: pagination.page,
     limit: pagination.limit,
@@ -234,13 +240,11 @@ export const updateSubscription = async (
     };
   }
 
-  const subscription = await globalPrisma.subscription.update({
+  return await globalPrisma.subscription.update({
     where: { id: subscriptionId },
     data: updateData,
-    select: selectSubscription,
+    select: selectSubscriptionList,
   });
-
-  return serializeSubscription(subscription);
 };
 
 export const updateSubscriptionStatus = async (
@@ -255,13 +259,11 @@ export const updateSubscriptionStatus = async (
     throw new AppError("Subscription not found", 404);
   }
 
-  const subscription = await globalPrisma.subscription.update({
+  return await globalPrisma.subscription.update({
     where: { id: subscriptionId },
     data: { status },
-    select: selectSubscription,
+    select: selectSubscriptionList,
   });
-
-  return serializeSubscription(subscription);
 };
 
 export const softDeleteSubscription = async (subscriptionId: string) => {
@@ -273,11 +275,9 @@ export const softDeleteSubscription = async (subscriptionId: string) => {
     throw new AppError("Subscription not found", 404);
   }
 
-  const subscription = await globalPrisma.subscription.update({
+  return await globalPrisma.subscription.update({
     where: { id: subscriptionId },
-    data: { deletedAt: new Date(), status: "DISABLED" },
-    select: selectSubscription,
+    data: { deletedAt: new Date(), status: "DELETED" },
+    select: selectSubscriptionList,
   });
-
-  return serializeSubscription(subscription);
 };

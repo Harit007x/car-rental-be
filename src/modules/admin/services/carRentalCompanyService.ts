@@ -199,19 +199,6 @@ const serializeCompanyDetail = (company: any) => {
   };
 };
 
-const getCompanyDetailOrThrow = async (companyId: string) => {
-  const company = await globalPrisma.rentalCompany.findUnique({
-    where: { id: companyId },
-    select: selectCompanyDetail,
-  });
-
-  if (!company) {
-    throw new AppError("Car rental company not found", 404);
-  }
-
-  return serializeCompanyDetail(company);
-};
-
 export const createCarRentalCompany = async (
   data: CreateCarRentalCompanyInput,
 ) => {
@@ -226,7 +213,7 @@ export const createCarRentalCompany = async (
 
   const subdomain = await generateUniqueSubdomain(data.businessName);
 
-  const company = await globalPrisma.rentalCompany.create({
+  return await globalPrisma.rentalCompany.create({
     data: {
       subdomain,
       businessName: data.businessName,
@@ -251,10 +238,8 @@ export const createCarRentalCompany = async (
         },
       },
     },
-    select: selectCompanyDetail,
+    select: selectCompanyListItem,
   });
-
-  return serializeCompanyDetail(company);
 };
 
 export const getCarRentalCompanies = async (
@@ -317,7 +302,16 @@ export const getCarRentalCompanies = async (
 };
 
 export const getCarRentalCompanyById = async (companyId: string) => {
-  return getCompanyDetailOrThrow(companyId);
+  const company = await globalPrisma.rentalCompany.findUnique({
+    where: { id: companyId },
+    select: selectCompanyDetail,
+  });
+
+  if (!company) {
+    throw new AppError("Car rental company not found", 404);
+  }
+
+  return serializeCompanyDetail(company);
 };
 
 export const updateCarRentalCompany = async (
@@ -358,8 +352,8 @@ export const updateCarRentalCompany = async (
     }
   }
 
-  await globalPrisma.$transaction(async (tx) => {
-    await tx.rentalCompany.update({
+  return globalPrisma.$transaction(async (tx) => {
+    const updatedCompany = await tx.rentalCompany.update({
       where: { id: companyId },
       data: {
         businessName: data.businessName,
@@ -374,6 +368,7 @@ export const updateCarRentalCompany = async (
         fleetSize: data.fleetSize,
         serviceOperationLocations: data.serviceOperationLocations,
       },
+      select: selectCompanyListItem,
     });
 
     if (data.bankAccount) {
@@ -394,9 +389,9 @@ export const updateCarRentalCompany = async (
         },
       });
     }
-  });
 
-  return getCompanyDetailOrThrow(companyId);
+    return updatedCompany;
+  });
 };
 
 export const updateCarRentalCompanyStatus = async (
@@ -422,6 +417,7 @@ export const updateCarRentalCompanyStatus = async (
   return globalPrisma.rentalCompany.update({
     where: { id: companyId },
     data: { status },
+    select: selectCompanyListItem,
   });
 };
 

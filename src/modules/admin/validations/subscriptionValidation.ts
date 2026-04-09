@@ -1,14 +1,9 @@
 import { z } from "zod";
 
-const subscriptionFeatureSchema = z.object({
+const subscriptionFeatureInputSchema = z.object({
   featureId: z.string().uuid(),
-  order: z.number().int().min(0).optional(),
+  order: z.coerce.number().int().min(0).optional(),
 });
-
-const subscriptionFeatureInputSchema = z.union([
-  z.string().uuid(),
-  subscriptionFeatureSchema,
-]);
 
 export const subscriptionIdParamsSchema = z.object({
   params: z.object({

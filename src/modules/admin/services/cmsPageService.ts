@@ -17,15 +17,12 @@ interface UpdateCmsPageInput {
   content?: string;
 }
 
-type CmsPageFilters = {
-  search?: string;
-};
-
 const selectCmsPage = {
   id: true,
   title: true,
   slug: true,
   content: true,
+  createdAt: true,
 };
 
 export const createCmsPage = async (data: CreateCmsPageInput) => {
@@ -123,5 +120,8 @@ export const deleteCmsPage = async (pageId: string) => {
     throw new AppError("CMS page not found", 404);
   }
 
-  return globalPrisma.cmsPage.delete({ where: { id: pageId } });
+  return globalPrisma.cmsPage.delete({
+    where: { id: pageId },
+    select: selectCmsPage,
+  });
 };

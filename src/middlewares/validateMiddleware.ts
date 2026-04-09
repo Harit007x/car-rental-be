@@ -12,10 +12,6 @@ export const validate =
       });
       next();
     } catch (err: any) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: err.errors,
-      });
+      next(err);
     }
   };
