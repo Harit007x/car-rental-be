@@ -1,6 +1,7 @@
 import { AppError } from "../../../lib/AppError";
 import { globalPrisma } from "../../../lib/prisma";
 import { hashPassword } from "../../../lib/password";
+import { generateTemporaryPassword } from "../../../lib/temporaryPassword";
 import type {
   PaginationParams,
   PaginatedResult,
@@ -11,7 +12,6 @@ interface CreateGovernmentUserInput {
   mobile: string;
   email: string;
   address: string;
-  password: string;
 }
 
 interface UpdateGovernmentUserInput {
@@ -19,7 +19,6 @@ interface UpdateGovernmentUserInput {
   mobile?: string;
   email?: string;
   address?: string;
-  password?: string;
 }
 
 type GovernmentUserFilters = {
@@ -36,6 +35,7 @@ const selectGovernmentUser = {
   address: true,
   status: true,
   mustChangePassword: true,
+  createdAt: true,
 };
 
 export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
@@ -55,7 +55,8 @@ export const createGovernmentUser = async (data: CreateGovernmentUserInput) => {
     throw new AppError("Mobile already in use", 409);
   }
 
-  const hashedPassword = await hashPassword(data.password);
+  const temporaryPassword = generateTemporaryPassword();
+  const hashedPassword = await hashPassword(temporaryPassword);
 
   return globalPrisma.governmentUser.create({
     data: {
@@ -188,10 +189,6 @@ export const updateGovernmentUser = async (
     email: data.email,
     address: data.address,
   };
-
-  if (data.password) {
-    updateData.passwordHash = await hashPassword(data.password);
-  }
 
   return globalPrisma.governmentUser.update({
     where: { id: userId },

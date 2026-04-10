@@ -106,13 +106,15 @@ const serializeSubscription = (subscription: any) => ({
   price: subscription.price,
   status: subscription.status,
   createdAt: subscription.createdAt,
-  features: (subscription.subscriptionFeatures || []).map((item: any) => ({
-    id: item.feature.id,
-    key: item.feature.key,
-    name: item.feature.name,
-    description: item.feature.description,
-    order: item.order,
-  })),
+  subscriptionFeatures: (subscription.subscriptionFeatures || []).map(
+    (item: any) => ({
+      id: item.feature.id,
+      key: item.feature.key,
+      name: item.feature.name,
+      description: item.feature.description,
+      order: item.order,
+    }),
+  ),
 });
 
 export const getAllFeatures = async () => {

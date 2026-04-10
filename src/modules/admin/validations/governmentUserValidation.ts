@@ -12,7 +12,6 @@ export const createGovernmentUserSchema = z.object({
     mobile: z.string().min(5),
     email: z.string().email(),
     address: z.string().min(5),
-    password: z.string().min(6),
   }),
 });
 
@@ -23,7 +22,6 @@ export const updateGovernmentUserSchema = z.object({
       mobile: z.string().min(5).optional(),
       email: z.string().email().optional(),
       address: z.string().min(5).optional(),
-      password: z.string().min(6).optional(),
     })
     .partial(),
   params: z.object({
