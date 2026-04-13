@@ -6,6 +6,11 @@ import type {
   PaginationParams,
   PaginatedResult,
 } from "../../../lib/pagination";
+import {
+  adminAuthUserInclude,
+  assertAdminRoleIsActive,
+  buildAdminAuthUser,
+} from "../utils/adminAuthUser";
 
 interface RegisterSuperAdminInput {
   name: string;
@@ -144,19 +149,6 @@ export const registerSuperAdmin = async (data: RegisterSuperAdminInput) => {
   };
 };
 
-export const getAdminProfile = async (adminId: string) => {
-  const admin = await globalPrisma.admin.findFirst({
-    where: { id: adminId, deletedAt: null, status: "ACTIVE" },
-    select: selectAdminListItem,
-  });
-
-  if (!admin) {
-    throw new AppError("Admin not found", 404);
-  }
-
-  return admin;
-};
-
 export const updateAdminProfile = async (
   adminId: string,
   data: UpdateAdminProfileInput,
@@ -185,83 +177,27 @@ export const updateAdminProfile = async (
       name: data.name,
       email: data.email,
     },
-    select: selectAdminListItem,
+    select: {
+      name: true,
+      email: true,
+    },
   });
 };
 
 export const getCurrentAdminUser = async (adminId: string) => {
   const admin = await globalPrisma.admin.findFirst({
     where: { id: adminId, deletedAt: null, status: "ACTIVE" },
-    include: {
-      role: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          deletedAt: true,
-        },
-      },
-      permissions: {
-        select: {
-          moduleId: true,
-          canView: true,
-          canAdd: true,
-          canEdit: true,
-          canDelete: true,
-          module: {
-            select: {
-              id: true,
-              key: true,
-              name: true,
-            },
-          },
-        },
-      },
-    },
+    include: adminAuthUserInclude,
   });
 
   if (!admin) {
     throw new AppError("Admin not found", 404);
   }
 
-  if (
-    !admin.isSuperAdmin &&
-    admin.roleId &&
-    (!admin.role || admin.role.deletedAt || admin.role.status !== "ACTIVE")
-  ) {
-    throw new AppError(
-      "Your role has been deactivated. Please contact the super admin.",
-      403,
-    );
-  }
+  assertAdminRoleIsActive(admin);
 
   return {
-    user: {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      userType: "ADMIN" as const,
-      isSuperAdmin: admin.isSuperAdmin,
-      role: admin.role
-        ? {
-            id: admin.role.id,
-            name: admin.role.name,
-          }
-        : null,
-      permissions: admin.isSuperAdmin
-        ? []
-        : admin.permissions
-            .map((permission) => ({
-              moduleId: permission.moduleId,
-              moduleKey: permission.module.key,
-              moduleName: permission.module.name,
-              canView: permission.canView,
-              canAdd: permission.canAdd,
-              canEdit: permission.canEdit,
-              canDelete: permission.canDelete,
-            }))
-            .sort((a, b) => a.moduleName.localeCompare(b.moduleName)),
-    },
+    user: buildAdminAuthUser(admin),
   };
 };
 

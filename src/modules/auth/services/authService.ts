@@ -8,6 +8,11 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from "../../../lib/jwt";
+import {
+  adminAuthUserInclude,
+  assertAdminRoleIsActive,
+  buildAdminAuthUser,
+} from "../../admin/utils/adminAuthUser";
 
 interface LoginInput {
   email: string;
@@ -30,14 +35,7 @@ const getTokenHashFromRefreshPayload = (payload: { tokenId?: string }) => {
 export const loginAdmin = async (data: LoginInput) => {
   const user = await globalPrisma.admin.findUnique({
     where: { email: data.email },
-    include: {
-      role: {
-        select: {
-          status: true,
-          deletedAt: true,
-        },
-      },
-    },
+    include: adminAuthUserInclude,
   });
 
   if (!user) {
@@ -59,7 +57,7 @@ export const loginAdmin = async (data: LoginInput) => {
     throw new AppError("Invalid email or password", 401);
   }
 
-  ensureAdminRoleIsActive(user);
+  assertAdminRoleIsActive(user);
 
   const { accessToken, refreshToken } = await issueGlobalTokens(
     user.id,
@@ -69,11 +67,7 @@ export const loginAdmin = async (data: LoginInput) => {
   return {
     accessToken,
     refreshToken,
-    user: {
-      id: user.id,
-      email: user.email,
-      isSuperAdmin: user.isSuperAdmin,
-    },
+    user: buildAdminAuthUser(user),
   };
 };
 
@@ -161,7 +155,7 @@ export const refreshAdminTokens = async (refreshToken: string) => {
     throw new AppError("User not found", 404);
   }
 
-  ensureAdminRoleIsActive(admin);
+  assertAdminRoleIsActive(admin);
 
   const accessToken = generateAccessToken({
     userId: user.id,
@@ -316,25 +310,4 @@ const getGlobalUserByType = async (
   });
 
   return user ? { ...user, isSuperAdmin: false } : null;
-};
-
-const ensureAdminRoleIsActive = (admin: {
-  isSuperAdmin: boolean;
-  roleId: string | null;
-  role: { status: string; deletedAt: Date | null } | null;
-}) => {
-  if (admin.isSuperAdmin) {
-    return;
-  }
-
-  if (!admin.roleId) {
-    return;
-  }
-
-  if (!admin.role || admin.role.deletedAt || admin.role.status !== "ACTIVE") {
-    throw new AppError(
-      "Your role has been deactivated. Please contact the super admin.",
-      403,
-    );
-  }
 };

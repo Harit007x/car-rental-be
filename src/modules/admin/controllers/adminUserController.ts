@@ -20,27 +20,6 @@ export const registerSuperAdmin = async (
   }
 };
 
-export const getProfile = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    if (!req.user) {
-      throw new AppError("Authentication required", 401);
-    }
-
-    const result = await adminService.getAdminProfile(req.user.userId);
-    res.json({
-      success: true,
-      message: "Admin profile retrieved successfully",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const me = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {

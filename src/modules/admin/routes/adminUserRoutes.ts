@@ -26,13 +26,6 @@ router.post(
 
 router.get("/me", authenticate, adminController.me);
 
-router.get(
-  "/profile",
-  authenticate,
-  requireSuperAdmin(),
-  adminController.getProfile,
-);
-
 router.put(
   "/profile",
   authenticate,
