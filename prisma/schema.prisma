@@ -12,12 +12,19 @@ datasource db {
 
 // ─── Enums ───────────────────────────────────────────────
 
-enum AdminRole {
-  SUPER_ADMIN
-  GOVERNMENT_ADMIN
+enum AdminStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
 }
 
-enum AdminUserStatus {
+enum RoleStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum GovernmentUserStatus {
   ACTIVE
   INACTIVE
   DELETED
@@ -41,97 +48,180 @@ enum CompanyStatus {
   ACCOUNT_DELETED
 }
 
-// ─── Global Models (public schema) ───────────────────────
-
-model AdminUser {
-  id            String              @id @default(uuid())
-  name          String
-  mobile        String              @unique
-  email         String              @unique
-  password      String
-  role          AdminRole
-  address       String
-  status        AdminUserStatus     @default(ACTIVE)
-  refreshTokens AdminRefreshToken[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+enum TokenStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
 }
 
-model AdminRefreshToken {
-  id          String    @id @default(uuid())
-  adminUserId String
-  adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
-  tokenId     String    @unique
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([adminUserId])
+enum AuthUserType {
+  ADMIN
+  GOVERNMENT
 }
 
-model Tenant {
+model Admin {
   id                 String            @id @default(uuid())
-  subdomain          String            @unique // e.g. abc.yourapp.com
-  businessName       String
-  registrationNumber String
-  ownerName          String
-  ownerPhone         String
-  ownerEmail         String
-  businessAddress    String
-  city               String
-  state              String
-  country            String
-  businessType       BusinessType
-  fleetSize          Int
-  bankAccount        BankAccount?
-  status             CompanyStatus     @default(INACTIVE)
+  name               String
+  email              String            @unique
+  passwordHash       String
+  isSuperAdmin       Boolean           @default(false)
+  roleId             String?
+  role               Role?             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissions        AdminPermission[]
+  status             AdminStatus       @default(ACTIVE)
+  mustChangePassword Boolean           @default(true)
+  deletedAt          DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
-  driverDirectories  DriverDirectory[]
+
+  @@index([roleId])
+  @@index([status])
+  @@index([isSuperAdmin])
+  @@index([deletedAt])
 }
 
-model BankAccount {
-  id          String   @id @default(uuid())
-  tenantId    String   @unique
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  accountName String
-  accountNo   String
-  bankName    String
-  ifscCode    String
-  createdAt   DateTime @default(now())
+model Module {
+  id               String            @id @default(uuid())
+  key              String            @unique
+  name             String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  adminPermissions AdminPermission[]
+  rolePermissions  RolePermission[]
 }
 
-model DriverDirectory {
+model Role {
+  id          String           @id @default(uuid())
+  name        String
+  status      RoleStatus       @default(ACTIVE)
+  deletedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  admins      Admin[]
+  permissions RolePermission[]
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model RolePermission {
   id        String   @id @default(uuid())
-  mobile    String   @unique
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  roleId    String
+  moduleId  String
+  canView   Boolean  @default(false)
+  canAdd    Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId])
+  @@unique([roleId, moduleId])
+  @@index([moduleId])
+  @@index([roleId])
 }
 
-model Otp {
+model AdminPermission {
   id        String   @id @default(uuid())
-  mobile    String
-  code      String
+  adminId   String
+  moduleId  String
+  canView   Boolean  @default(false)
+  canAdd    Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, moduleId])
+  @@index([moduleId])
+  @@index([adminId])
+}
+
+model GovernmentUser {
+  id                 String               @id @default(uuid())
+  name               String
+  mobile             String               @unique
+  email              String               @unique
+  address            String?
+  passwordHash       String
+  status             GovernmentUserStatus @default(ACTIVE)
+  mustChangePassword Boolean              @default(true)
+  deletedAt          DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String       @id @default(uuid())
+  userId    String
+  userType  AuthUserType
+  tokenHash String       @unique
+  status    TokenStatus  @default(ACTIVE)
   expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  @@index([mobile])
+  @@index([userId, userType])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ResetPasswordToken {
+  id        String       @id @default(uuid())
+  userId    String
+  userType  AuthUserType
+  tokenHash String       @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  @@index([userId, userType])
+  @@index([expiresAt])
+}
+
+model Feature {
+  id                   String                @id @default(uuid())
+  key                  String                @unique
+  name                 String
+  description          String?
+  subscriptionFeatures SubscriptionFeature[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 }
 
 model Subscription {
-  id          String             @id @default(uuid())
-  name        String             @unique
-  description String
-  features    String[]
-  price       Float
-  status      SubscriptionStatus @default(ENABLED)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                         String                      @id @default(uuid())
+  name                       String                      @unique
+  description                String
+  price                      Decimal                     @db.Decimal(10, 2)
+  status                     SubscriptionStatus          @default(ENABLED)
+  deletedAt                  DateTime?
+  subscriptionFeatures       SubscriptionFeature[]
+  rentalCompanySubscriptions RentalCompanySubscription[]
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SubscriptionFeature {
+  subscriptionId String
+  featureId      String
+  order          Int          @default(0)
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  feature        Feature      @relation(fields: [featureId], references: [id], onDelete: Restrict)
+
+  @@id([subscriptionId, featureId])
+  @@index([featureId])
 }
 
 model CmsPage {
@@ -141,4 +231,54 @@ model CmsPage {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RentalCompany {
+  id                        String                      @id @default(uuid())
+  subdomain                 String                      @unique
+  businessName              String
+  registrationNumber        String
+  ownerName                 String
+  ownerPhone                String
+  ownerEmail                String
+  businessAddress           String
+  city                      String
+  state                     String
+  country                   String
+  serviceOperationLocations String[]
+  businessType              BusinessType
+  fleetSize                 Int
+  bankAccount               BankAccount?
+  subscriptions             RentalCompanySubscription[]
+  status                    CompanyStatus               @default(INACTIVE)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+}
+
+model BankAccount {
+  id              String        @id @default(uuid())
+  rentalCompanyId String        @unique
+  rentalCompany   RentalCompany @relation(fields: [rentalCompanyId], references: [id])
+  accountName     String
+  accountNo       String
+  bankName        String
+  ifscCode        String
+  createdAt       DateTime      @default(now())
+}
+
+model RentalCompanySubscription {
+  id              String        @id @default(uuid())
+  rentalCompanyId String
+  subscriptionId  String
+  startDate       DateTime
+  endDate         DateTime?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  rentalCompany   RentalCompany @relation(fields: [rentalCompanyId], references: [id], onDelete: Cascade)
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([rentalCompanyId])
+  @@index([subscriptionId])
+  @@index([isActive])
 }

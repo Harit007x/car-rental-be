@@ -8,10 +8,9 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "prisma:generate": "prisma generate && prisma generate --config prisma/tenant.config.ts",
-    "prisma:merge": "prisma db push",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",

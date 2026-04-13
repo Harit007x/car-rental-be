@@ -1,8 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../lib/AppError';
-import { ZodError } from 'zod';
+import { Request, Response, NextFunction } from "express";
+import { AppError } from "../lib/AppError";
+import { ZodError } from "zod";
+import { env } from "../config/env";
 
-export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
+export const errorHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+) => {
   // Handle AppError
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
@@ -15,7 +21,7 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
   if (err instanceof ZodError) {
     return res.status(400).json({
       success: false,
-      message: 'Validation Error',
+      message: "Validation Error",
       errors: err.errors,
     });
   }
@@ -24,7 +30,7 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    message: err.message || "Internal Server Error",
+    stack: env.NODE_ENV === "production" ? null : err.stack,
   });
 };

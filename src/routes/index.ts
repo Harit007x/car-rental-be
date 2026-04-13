@@ -1,11 +1,6 @@
 import express, { Router } from "express";
-import authRoutes from "./authRoutes";
-import superAdminAuthRoutes from "./superAdminAuthRoutes";
-import tenantRoutes from "./tenantRoutes";
-import vehicleRoutes from "./vehicleRoutes";
-import governmentUserRoutes from "./governmentUserRoutes";
-import subscriptionRoutes from "./subscriptionRoutes";
-import cmsPageRoutes from "./cmsPageRoutes";
+import adminRoutes from "../modules/admin/routes";
+import governmentAuthRoutes from "../modules/government/routes";
 
 const router: Router = express.Router();
 
@@ -20,12 +15,7 @@ const router: Router = express.Router();
  */
 router.get("/health", (req, res) => res.json({ status: "ok" }));
 
-router.use("/auth", authRoutes);
-router.use("/super-admin", superAdminAuthRoutes);
-router.use("/tenants", tenantRoutes);
-router.use("/vehicles", vehicleRoutes);
-router.use("/government-users", governmentUserRoutes);
-router.use("/subscriptions", subscriptionRoutes);
-router.use("/cms-pages", cmsPageRoutes);
+router.use("/admin", adminRoutes);
+router.use("/government", governmentAuthRoutes);
 
 export default router;
